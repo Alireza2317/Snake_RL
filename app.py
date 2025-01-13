@@ -9,9 +9,9 @@ INCREMENT_SPEED = False
 SCALE = 1.0065
 
 # dimensions
-WN: int = 20
-HN: int = 16
-BLOCK_SIZE = 40
+WN: int = 12
+HN: int = 12
+BLOCK_SIZE = 50
 
 PD = 50
 # some padding outside the walls of the game. lower values might not allow
@@ -26,10 +26,6 @@ SHAPE = 'square'
 #SHAPE = 'circle'
 
 INITIAL_SIZE = 4
-# the snake's head roundness, 0 to disable
-# only when SHAPE = 'square'
-ROUNDNESS = BLOCK_SIZE
-
 
 # colors, all in tuple format, (r, g, b)
 BG_COLOR = (35, 35, 35)
@@ -43,13 +39,7 @@ FOOD_COLOR = (239, 57, 57)
 FONT_SIZE = 22
 FONT_COLOR = (220, 220, 220)
 
-# foods
-# this will be the number of foods that will always be in the game map
-NUM_FOODS = 1
 
-# checking some parameters, to make the game more well-behaved
-if NUM_FOODS >= WN * HN:
-	raise ValueError(f'Number of foods should be less than {WN*HN}')
 if  FPS <= 0:
 	raise ValueError('FPS should be positive numbers!')
 if INITIAL_SIZE >= WN-1:
@@ -232,7 +222,6 @@ class SnakeGame:
 		self.score: int = 0
 		self.fps = FPS
 		self.game_over = False
-		self.num_foods = NUM_FOODS
 
 		# will initialize self.world, self.snake, self.foods
 		self.reset()
@@ -249,26 +238,10 @@ class SnakeGame:
 
 		self.snake = Snake(init_size=INITIAL_SIZE)
 
-		self.foods: list[Position] = []
-		self.generate_foods()
+		self.food: Position | None = None
+		self.generate_food()
 
 		self.update_world()
-
-
-	def calc_border_radiuses(self) -> tuple[int, int, int, int]:
-		direction = self.snake.direction
-
-		tr = tl = br = bl = 0
-		if direction == 'u':
-			tr = tl = ROUNDNESS
-		elif direction == 'd':
-			br = bl = ROUNDNESS
-		elif direction == 'r':
-			tr = br = ROUNDNESS
-		elif direction == 'l':
-			tl = bl = ROUNDNESS
-
-		return (tl, tr, br, bl)
 
 
 	def update_world(self) -> None:
@@ -292,15 +265,12 @@ class SnakeGame:
 					# neat trick to use ate_food method to check collision with head
 					if self.snake.ate_food(coordinate):
 						# the snake's head, only if want different color for the head
-						# rounding the head based on the direction of snake
-						if SHAPE == 'square':
-							radiuses = self.calc_border_radiuses()
-						self.world[r][c] = Block(left=left, top=top, color=SNAKE_HEAD_COLOR, kind='head', border_radius=radiuses)
+						self.world[r][c] = Block(left=left, top=top, color=SNAKE_HEAD_COLOR, kind='head')
 					else: # snake body parts except the head
 
 						self.world[r][c] = Block(left=left, top=top, color=SNAKE_COLOR, kind='snake', border_radius=radiuses)
 
-				elif coordinate in self.foods:
+				elif coordinate == self.food:
 					self.world[r][c] = Block(left=left, top=top, color=FOOD_COLOR, kind='food', border_radius=radiuses)
 
 				else: # just the empty world block
@@ -344,17 +314,15 @@ class SnakeGame:
 		return (out_of_x or out_of_y)
 
 
-	def generate_foods(self) -> None:
+	def generate_food(self) -> None:
 		while True:
-			if len(self.foods) >= self.num_foods: break
-
-			x, y = randint(0, WN-1), randint(0, HN-1)
-			p = Position(x, y)
-
+			pos = Position(randint(0, WN-1), randint(0, HN-1))
 			# this coordinate should not collide with other foods or the snake
-			if self.snake.hit_position(pos=p) or (p in self.foods): continue
+			if self.food is not None:
+				if self.snake.hit_position(pos=pos) or (pos == self.food.astuple): continue
 
-			self.foods.append(p)
+			self.food = pos
+			break
 
 
 	def is_world_full(self) -> bool:
@@ -425,20 +393,13 @@ class SnakeGame:
 		self.snake.move()
 
 		# 3. snake grows if ate any food
-		for i, food in enumerate(self.foods):
-			if self.snake.ate_food(food_pos=food):
-				if INCREMENT_SPEED: self.fps *= SCALE
+		if self.snake.ate_food(food_pos=self.food):
+			self.snake.grow()
 
-				self.foods.pop(i)
-				self.snake.grow()
+			self.score += 1
 
-				self.score += 1
-
-				if not self.is_world_full():
-					self.generate_foods()
-
-				# if snake ate a food, no need to continue this loop
-				break
+			if not self.is_world_full():
+				self.generate_food()
 
 
 		# 4. check collisions
