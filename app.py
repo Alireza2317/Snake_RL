@@ -90,9 +90,9 @@ class Position:
 		return str(self.astuple)
 
 
-class Snake:
+class SnakeGame:
 	"""
-	Snake class that handles all the logic of a snake
+	handles all the logic of a snake game
 	"""
 	def __init__(self, init_size: int = 3) -> None:
 		self.direction: str = 'r'
@@ -118,21 +118,11 @@ class Snake:
 
 
 	def turn(self, dir_to_turn: str) -> None:
-		if self.direction == 'u':
-			if dir_to_turn == 'd':
-				return
+		if self.direction in ('u', 'd') and dir_to_turn in ('u', 'd'):
+			return
 
-		elif self.direction == 'd':
-			if dir_to_turn == 'u':
-				return
-
-		elif self.direction == 'r':
-			if dir_to_turn == 'l':
-				return
-
-		elif self.direction == 'l':
-			if dir_to_turn == 'r':
-				return
+		elif self.direction in ('r', 'l') and dir_to_turn in ('r', 'l'):
+			return
 
 		self.direction = dir_to_turn
 
@@ -210,7 +200,11 @@ class Block:
 		return self.kind[0]
 
 
-class SnakeGame:
+class SnakeGameGUI:
+	"""
+	handles all the graphical features and rendering the snake game
+	"""
+
 	def __init__(self) -> None:
 		pg.init()
 		self.screen = pg.display.set_mode((WIDTH, HEIGHT))
