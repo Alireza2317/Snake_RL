@@ -93,14 +93,18 @@ class SnakeGame:
 	"""
 	handles all the logic of a snake game
 	"""
-	def __init__(self, init_size: int = INITIAL_SIZE) -> None:
+	def __init__(self) -> None:
+		self.reset()
+
+
+	def reset(self) -> None:
 		self.direction: str = 'r'
 		self.action: str = 'r'
 
 		# first element will be the head
 		self.snake: list[Position] = [
 			Position(i, 0)
-			for i in range(init_size, -1, -1)
+			for i in range(INITIAL_SIZE, -1, -1)
 		]
 
 		# useful when growing the snake
@@ -248,11 +252,16 @@ class SnakeGame:
 		return True
 
 
-	def step(self) -> bool:
+	def step(self) -> tuple[list[float], float, bool]:
 		"""
 		takes in an action and applies it to the game
-		returns wether the game is over or not
+		returns a tuple in this order:
+			the game state after the snake's move
+			reward
+			game_over flag
 		"""
+		reward: float = 0
+
 		self.turn(self.action)
 
 		self.move()
@@ -261,6 +270,7 @@ class SnakeGame:
 		if self.ate_food():
 			self.grow()
 			self.score += 1
+			reward = 1
 
 			if not self.is_world_full():
 				self.generate_food()
@@ -270,6 +280,7 @@ class SnakeGame:
 		self.game_over = self.hit_self() or self.hit_wall()
 		if self.game_over:
 			print('You lost!')
+			reward = -1
 
 		# update the world
 		self.update_world()
@@ -280,7 +291,7 @@ class SnakeGame:
 			self.game_over = True # good game over!
 			print('You won the snake game!')
 
-		return self.game_over
+		return self.get_state(), reward, self.game_over
 
 
 	def pretty_print(self) -> None:
@@ -297,6 +308,41 @@ class SnakeGame:
 			print()
 
 		print('___________')
+
+
+	def get_state(self) -> list[float]:
+		"""
+		returning the current game state which consists of:
+		1. snake's body parts -> 1
+		2. snake's head -> 2
+		3. food -> 5
+		4. empty cells -> 0
+		5. direction of the snake:
+			a binary list of 4 numbers as: [up, right, down, left]
+		"""
+
+		state: list[float] = []
+		for row in self.world:
+			for cell in row:
+				if cell == '':
+					state.append(0)
+				elif cell == 'h':
+					state.append(2)
+				elif cell == 's':
+					state.append(1)
+				elif cell == 'f':
+					state.append(5)
+
+		if self.direction == 'u':
+			state.extend([1, 0, 0, 0])
+		elif self.direction == 'r':
+			state.extend([0, 1, 0, 0])
+		elif self.direction == 'd':
+			state.extend([0, 0, 1, 0])
+		elif self.direction == 'l':
+			state.extend([0, 0, 0, 0])
+
+		return state
 
 
 
@@ -507,7 +553,7 @@ class Agent:
 	def __init__(self, train_mode: bool = False) -> None:
 		# creating the neural network
 		self.network = NeuralNetwork(
-			layers_structure=[WN*HN, 32, 32, 4],
+			layers_structure=[WN*HN+4, 32, 32, 4],
 			activations='tanh'
 		)
 
