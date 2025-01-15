@@ -1,6 +1,8 @@
 import sys
+import time
 import pygame as pg
-from random import randint
+from random import choice, randint
+from copy import deepcopy
 
 # speed. the higher the fps, the faster the game
 FPS = 8
@@ -25,7 +27,7 @@ HEIGHT = HN * BLOCK_SIZE + 2*PD
 SHAPE = 'square'
 #SHAPE = 'circle'
 
-INITIAL_SIZE = 4
+INITIAL_SIZE = 3
 
 # colors, all in tuple format, (r, g, b)
 BG_COLOR = (35, 35, 35)
@@ -48,10 +50,6 @@ if INITIAL_SIZE >= WN-1:
 # comment this if your screen is big enough
 if WIDTH > 1920 or HEIGHT > 1080:
 	raise ValueError('Consider reducing WN and HN or BLOCK_SIZE! Too big for most screens!')
-
-# comment this if you wanna get dizzy :)
-if FPS > 25:
-	raise ValueError('Consider using a lower value for FPS.')
 
 
 class Position:
@@ -94,27 +92,63 @@ class SnakeGame:
 	"""
 	handles all the logic of a snake game
 	"""
-	def __init__(self, init_size: int = 3) -> None:
+	def __init__(self, init_size: int = INITIAL_SIZE) -> None:
 		self.direction: str = 'r'
 
 		# first element will be the head
-		self.body: list[Position] = [
-			Position(i-1, 0)
-			for i in range(init_size-1, -1, -1)
+		self.snake: list[Position] = [
+			Position(i, 0)
+			for i in range(init_size, -1, -1)
 		]
 
 		# useful when growing the snake
-		self._left_over: Position = self.body[-1]
+		self._left_over: Position = self.snake[-1]
+
+		# the world consists of 4 elements:
+		# 'h': is the position of the snake's head(only one)
+		# 's': is the position of the snake's body parts(can be more than one)
+		# 'f': is the position of the food in the world
+		# '': is the empty cells in the world
+		self.world: list[list[str]] = [
+			['' for col in range(WN)] for row in range(HN)
+		]
+
+		# creates self.food property
+		self.generate_food()
+
+		# update the world
+		self.update_world()
+
+		self.game_over = False
+
+		self.score: int = 0
+
+
+	def update_world(self) -> None:
+		"""
+		updates self.world based on self.snake and self.food positions
+		"""
+		for r in range(HN):
+			for c in range(WN):
+				pos = (c, r)
+				if pos == self.food:
+					self.world[r][c] = 'f'
+				elif self.hit_position(pos):
+					self.world[r][c] = 's'
+				else:
+					self.world[r][c] = ''
+				if self.head == pos:
+					self.world[r][c] = 'h'
 
 
 	@property
 	def size(self):
-		return len(self.body)
+		return len(self.snake)
 
 
 	@property
 	def head(self) -> Position:
-		return self.body[0]
+		return self.snake[0]
 
 
 	def turn(self, dir_to_turn: str) -> None:
@@ -128,7 +162,7 @@ class SnakeGame:
 
 
 	def grow(self) -> None:
-		self.body.append(self._left_over)
+		self.snake.append(self._left_over)
 
 
 	def move(self) -> None:
@@ -136,7 +170,7 @@ class SnakeGame:
 		new_head = Position(*self.head.astuple)
 
 		# remove the last body part and save it
-		self._left_over = self.body.pop()
+		self._left_over = self.snake.pop()
 
 
 		match self.direction:
@@ -150,54 +184,118 @@ class SnakeGame:
 				new_head.y -= 1
 
 
-		# all except the first and the last Position (head and tail)
-		self.body.insert(0, new_head)
+		# all body parts are the same
+		# except the first and the last Position (head and tail)
+		self.snake.insert(0, new_head)
 
 
-	def ate_food(self, food_pos: Position | tuple) -> bool:
-		return (self.head == food_pos)
+	def ate_food(self) -> bool:
+		return (self.head == self.food)
 
 
 	def hit_position(self, pos: Position | tuple) -> bool:
-		return (pos in self.body)
+		return (pos in self.snake)
 
 
 	def hit_self(self) -> bool:
-		return (self.head in self.body[1:])
+		return (self.head in self.snake[1:])
 
 
-	def __repr__(self) -> str:
-		return str(self.body)
+	def hit_wall(self) -> bool:
+		out_of_x = (self.head.x < 0 or self.head.x >= WN)
+		out_of_y = (self.head.y < 0 or self.head.y >= HN)
+
+		if out_of_x or out_of_y:
+			return True
+
+		return False
 
 
-class Block:
-	"""
-	Block class holds the information of each grid in the snake game
-	Contains information of the positions as well as styles
-	"""
-	def __init__(
-			self,
-			left: int | float,
-			top: int | float,
-			border: int = 0,
-			size: int = BLOCK_SIZE,
-			color: tuple[int, int, int] = (255, 255, 255),
-			kind: str = 'blank',
-			border_radius: tuple[int, int, int, int] = (0, 0, 0, 0) # (tl, tr, br, bl)
-	) -> None:
+	def generate_food(self) -> None:
+		valid_cells: list[Position] = []
+		for r, row in enumerate(self.world):
+				for c, cell in enumerate(row):
+					pos = Position(x=c, y=r)
+					if not hasattr(self, 'food'):
+						if not self.hit_position(pos):
+							valid_cells.append(pos)
+					else:
+						if cell == '':
+							valid_cells.append(pos)
+
+		self.food = choice(valid_cells)
 
 
-		self.block: pg.Rect = pg.Rect((left, top), (size, size))
-		self.color: pg.Color = pg.Color(*color)
-		self.border: int = border
-		self.border_radius: tuple[int, int, int, int] = border_radius
+	def is_world_full(self) -> bool:
+		# check to see if there are any empty cells in the world
+		for row in self.world:
+			for cell in row:
+				if cell == '':
+					return False
+		return True
 
-		# kind could be: 'blank', 'snake', 'head', 'food'
-		self.kind: str = kind
+
+	def is_world_snaked(self) -> bool:
+		# best function name does not exist:
+		for row in self.world:
+			for cell in row:
+				# if the cell is not the snake's head or body parts
+				if cell not in ['h', 's']:
+					return False
+
+		return True
 
 
-	def __repr__(self) -> str:
-		return self.kind[0]
+	def step(self, action: str) -> bool:
+		"""
+		takes in an action and applies it to the game
+		returns wether the game is over or not
+		"""
+		self.turn(action)
+
+		self.move()
+
+		# snake grows if ate any food
+		if self.ate_food():
+			self.grow()
+			self.score += 1
+
+			if not self.is_world_full():
+				self.generate_food()
+
+
+		# check collisions
+		self.game_over = self.hit_self() or self.hit_wall()
+		if self.game_over:
+			print('You lost!')
+
+		# update the world
+		self.update_world()
+
+		# check if the player won the game?!
+		if self.is_world_snaked():
+			# this will probably never happen in a real game!
+			self.game_over = True # good game over!
+			print('You won the snake game!')
+
+		return self.game_over
+
+
+	def pretty_print(self) -> None:
+		for r, row in enumerate(self.world):
+			for c, cell in enumerate(row):
+				if cell == '':
+					print('📦 ', end='')
+				elif cell == 'h':
+					print('🐍 ', end='')
+				elif cell == 's':
+					print('🟢 ', end='')
+				elif cell == 'f':
+					print('🍎 ', end='')
+			print()
+
+		print('___________')
+
 
 
 class SnakeGameGUI:
@@ -205,42 +303,71 @@ class SnakeGameGUI:
 	handles all the graphical features and rendering the snake game
 	"""
 
-	def __init__(self) -> None:
-		pg.init()
-		self.screen = pg.display.set_mode((WIDTH, HEIGHT))
-		pg.display.set_caption('Snake Game')
-		self.clock = pg.time.Clock()
+	class Block:
+		"""
+		Block class holds the information of each grid in the snake game
+		Contains information of the positions as well as styles
+		"""
+		def __init__(
+				self,
+				left: int | float,
+				top: int | float,
+				border: int = 0,
+				size: int = BLOCK_SIZE,
+				color: tuple[int, int, int] = (255, 255, 255),
+				kind: str = '',
+				border_radius: tuple[int, int, int, int] = (0, 0, 0, 0) # (tl, tr, br, bl)
+		) -> None:
 
-		self.font = pg.font.Font(pg.font.get_default_font(), FONT_SIZE)
 
-		self.score: int = 0
-		self.fps = FPS
-		self.game_over = False
+			self.block: pg.Rect = pg.Rect((left, top), (size, size))
+			self.color: pg.Color = pg.Color(*color)
+			self.border: int = border
+			self.border_radius: tuple[int, int, int, int] = border_radius
 
-		# will initialize self.world, self.snake, self.foods
-		self.reset()
+			# kind could be:
+			# 'h': the snake's head
+			# 's': the snake's body parts
+			# 'f': the food
+			# '': empty cells
+			self.kind: str = kind
 
 
-	def reset(self) -> None:
-		# reset
-		self.game_over = False
-		self.score = 0
+		def __repr__(self) -> str:
+			return self.kind
 
-		self.world: list[list[Block]] = [
-			[None for col in range(WN)] for row in range(HN)
-		]
 
-		self.snake = Snake(init_size=INITIAL_SIZE)
+	def __init__(self, render_enabled: bool = True) -> None:
+		self.render_enabled = render_enabled
+		self.game = SnakeGame()
 
-		self.food: Position | None = None
-		self.generate_food()
+		if self.render_enabled:
+			pg.init()
+			self.screen = pg.display.set_mode((WIDTH, HEIGHT))
+			pg.display.set_caption('Snake Game')
+			self.clock = pg.time.Clock()
 
-		self.update_world()
+			self.font = pg.font.Font(pg.font.get_default_font(), FONT_SIZE)
+
+			self.fps = FPS
+
+			# updates self.world from self.game.world
+			self.update_world()
 
 
 	def update_world(self) -> None:
-		for r in range(HN):
-			for c in range(WN):
+		"""
+		updates self.world from self.game.world out of Block objects instead of simple strings
+		"""
+		if SHAPE == 'circle':
+			radiuses = tuple([BLOCK_SIZE for _ in range(4)])
+		else:
+			radiuses = tuple([0 for _ in range(4)])
+
+		self.world = deepcopy(self.game.world)
+
+		for r, row in enumerate(self.world):
+			for c, cell in enumerate(row):
 				# calculating the coordinates of each pixel/block
 				left = c * BLOCK_SIZE + PD
 				top = r * BLOCK_SIZE + PD
@@ -250,28 +377,43 @@ class SnakeGameGUI:
 				# because r, which is rows, goes up and down -> y coordinate
 				# and c, which is cols, goes right and left -> x coordinate
 
-				if SHAPE == 'circle':
-					radiuses = tuple([BLOCK_SIZE for _ in range(4)])
-				elif SHAPE == 'square':
-					radiuses = tuple([0 for _ in range(4)])
+				# snake's head block
+				if cell == 'h':
+					self.world[r][c] = self.Block(
+						left=left, top=top,
+						color=SNAKE_HEAD_COLOR,
+						kind=cell,
+						border_radius=radiuses
+					)
 
-				if self.snake.hit_position(pos=coordinate):
-					# neat trick to use ate_food method to check collision with head
-					if self.snake.ate_food(coordinate):
-						# the snake's head, only if want different color for the head
-						self.world[r][c] = Block(left=left, top=top, color=SNAKE_HEAD_COLOR, kind='head')
-					else: # snake body parts except the head
+				elif cell == 's':
+					self.world[r][c] = self.Block(
+						left=left, top=top,
+						color=SNAKE_COLOR,
+						kind=cell,
+						border_radius=radiuses
+					)
 
-						self.world[r][c] = Block(left=left, top=top, color=SNAKE_COLOR, kind='snake', border_radius=radiuses)
-
-				elif coordinate == self.food:
-					self.world[r][c] = Block(left=left, top=top, color=FOOD_COLOR, kind='food', border_radius=radiuses)
+				elif cell == 'f':
+					self.world[r][c] = self.Block(
+						left=left, top=top,
+						color=FOOD_COLOR,
+						kind=cell,
+						border_radius=radiuses
+					)
 
 				else: # just the empty world block
-					self.world[r][c] = Block(left=left, top=top, color=GRID_COLOR, border=1, kind='blank')
+					self.world[r][c] = self.Block(
+						left=left, top=top,
+						color=GRID_COLOR,
+						border=1,
+						kind=''
+					)
 
 
 	def draw_world(self) -> None:
+		self.screen.fill(color=BG_COLOR)
+
 		for r in range(HN):
 			for c in range(WN):
 				block = self.world[r][c].block
@@ -301,43 +443,6 @@ class SnakeGameGUI:
 		)
 
 
-	def hit_wall(self) -> bool:
-		out_of_x = (self.snake.head.x < 0 or self.snake.head.x >= WN)
-		out_of_y = (self.snake.head.y < 0 or self.snake.head.y >= HN)
-
-		return (out_of_x or out_of_y)
-
-
-	def generate_food(self) -> None:
-		while True:
-			pos = Position(randint(0, WN-1), randint(0, HN-1))
-			# this coordinate should not collide with other foods or the snake
-			if self.food is not None:
-				if self.snake.hit_position(pos=pos) or (pos == self.food.astuple): continue
-
-			self.food = pos
-			break
-
-
-	def is_world_full(self) -> bool:
-		# check to see if there are any blank blocks in the world
-		for row in self.world:
-			for blk in row:
-				if blk.kind == 'blank':
-					return False
-		return True
-
-
-	def is_world_snaked(self) -> bool:
-		# best function name does not exist:
-		for row in self.world:
-			for blk in row:
-				if blk.kind not in ['head', 'snake']:
-					return False
-
-		return True
-
-
 	def messg_on_game_over(self, messg: str, color = FONT_COLOR) -> None:
 		pg.time.delay(1000)
 		while True:
@@ -356,76 +461,68 @@ class SnakeGameGUI:
 			self.screen.blit(text, (WIDTH//2 - text.get_width()//2, HEIGHT//3))
 			pg.display.update()
 
+	@staticmethod
+	def random_move():
+		yield 'd'
+		yield 'd'
+		yield 'd'
+		yield 'r'
+		yield 'd'
+		yield 'd'
+		yield 'd'
+		yield 'r'
+		yield 'r'
+		yield 'r'
+		yield 'u'
+		yield 'u'
+		yield 'u'
+		yield 'l'
+
+	moves = random_move()
 
 	def step(self) -> bool:
-		# 1. get user input
-		# event loop
+		if not self.render_enabled:
+			return self.game.game_over
+
+		# get user input in event loop
 		for event in pg.event.get():
 			if event.type == pg.QUIT:
 				pg.quit()
 				sys.exit()
 
-			elif event.type == pg.KEYDOWN:
-				if event.key == pg.K_UP:
-					self.snake.turn('u')
-				elif event.key == pg.K_DOWN:
-					self.snake.turn('d')
-				elif event.key == pg.K_LEFT:
-					self.snake.turn('l')
-				elif event.key == pg.K_RIGHT:
-					self.snake.turn('r')
-
+			if event.type == pg.KEYDOWN:
 				if event.key == pg.K_KP_PLUS:
 					if self.fps + 1 <= 25:
 						self.fps += 1
 				elif event.key == pg.K_KP_MINUS:
 					if self.fps - 1 > 0:
 						self.fps -= 1
-				break
 
-		# 2. snake moves
-		self.snake.move()
-
-		# 3. snake grows if ate any food
-		if self.snake.ate_food(food_pos=self.food):
-			self.snake.grow()
-
-			self.score += 1
-
-			if not self.is_world_full():
-				self.generate_food()
-
-
-		# 4. check collisions
-		if self.snake.hit_self() or self.hit_wall():
-			self.game_over = True
-			self.messg_on_game_over(messg='Game Over!')
-
-		# 5. update the world
+		# stepping the game with a random move
+		#action = choice(['u', 'd', 'r', 'l'])
 		self.update_world()
 
-		# 6. check if the player won the game?!
-		if self.is_world_snaked():
-			# this will probably never happen in a real game!
-			self.game_over = True # good game over!
-			self.messg_on_game_over(messg='Well congrats! You won the snake game!')
+		try:
+			action = next(self.moves)
+			self.game.step(action)
+		except:
+			self.game.step('l')
 
-		# 7. draw the whole game world and the score
-		self.screen.fill(color=BG_COLOR)
+
+		# draw the whole game world and the score
 		self.draw_world()
 
-		info = self.font.render(f'Score = {self.score} ---- FPS = {self.fps:.1f}', True, FONT_COLOR)
+		info = self.font.render(f'Score = {self.game.score} ---- FPS = {self.fps:.1f}', True, FONT_COLOR)
 		self.screen.blit(info, (PD, int(PD/5)))
-
 
 		pg.display.update()
 		self.clock.tick(self.fps)
 
-		return self.game_over
+		return self.game.game_over
 
 
 if __name__ == '__main__':
-	game: SnakeGame = SnakeGame()
+	game: SnakeGame = SnakeGameGUI(render_enabled=True)
 
 	while True:
 		game_over = game.step()
