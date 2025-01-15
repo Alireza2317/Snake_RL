@@ -94,6 +94,7 @@ class SnakeGame:
 	"""
 	def __init__(self, init_size: int = INITIAL_SIZE) -> None:
 		self.direction: str = 'r'
+		self.action: str = 'r'
 
 		# first element will be the head
 		self.snake: list[Position] = [
@@ -246,12 +247,12 @@ class SnakeGame:
 		return True
 
 
-	def step(self, action: str) -> bool:
+	def step(self) -> bool:
 		"""
 		takes in an action and applies it to the game
 		returns wether the game is over or not
 		"""
-		self.turn(action)
+		self.turn(self.action)
 
 		self.move()
 
@@ -481,17 +482,17 @@ class SnakeGameGUI:
 						self.fps -= 1
 
 		# stepping the game with a random move
-		action = choice(['u', 'd', 'r', 'l'])
+		self.game.action = choice(['u', 'd', 'r', 'l'])
 
-		self.game.step(action)
-		
+		self.game.step()
+
 		self.update_world()
 
 
 		# draw the whole game world and the score
 		self.draw_world()
 
-		info = self.font.render(f'Score = {self.game.score} ---- FPS = {self.fps:.1f}', True, FONT_COLOR)
+		info = self.font.render(f'Score = {self.game.score} ------- FPS = {self.fps:.0f}', True, FONT_COLOR)
 		self.screen.blit(info, (PD, int(PD/5)))
 
 		pg.display.update()
