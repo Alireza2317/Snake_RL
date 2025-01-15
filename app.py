@@ -461,24 +461,6 @@ class SnakeGameGUI:
 			self.screen.blit(text, (WIDTH//2 - text.get_width()//2, HEIGHT//3))
 			pg.display.update()
 
-	@staticmethod
-	def random_move():
-		yield 'd'
-		yield 'd'
-		yield 'd'
-		yield 'r'
-		yield 'd'
-		yield 'd'
-		yield 'd'
-		yield 'r'
-		yield 'r'
-		yield 'r'
-		yield 'u'
-		yield 'u'
-		yield 'u'
-		yield 'l'
-
-	moves = random_move()
 
 	def step(self) -> bool:
 		if not self.render_enabled:
@@ -499,14 +481,11 @@ class SnakeGameGUI:
 						self.fps -= 1
 
 		# stepping the game with a random move
-		#action = choice(['u', 'd', 'r', 'l'])
-		self.update_world()
+		action = choice(['u', 'd', 'r', 'l'])
 
-		try:
-			action = next(self.moves)
-			self.game.step(action)
-		except:
-			self.game.step('l')
+		self.game.step(action)
+		
+		self.update_world()
 
 
 		# draw the whole game world and the score
