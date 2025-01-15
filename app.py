@@ -6,7 +6,7 @@ from copy import deepcopy
 from nn import NeuralNetwork
 
 # speed. the higher the fps, the faster the game
-FPS = 8
+FPS = 3
 # if set to true, will scale up the fps after eating a food
 INCREMENT_SPEED = False
 SCALE = 1.0065
@@ -42,6 +42,7 @@ FOOD_COLOR = (239, 57, 57)
 FONT_SIZE = 22
 FONT_COLOR = (220, 220, 220)
 
+PARAMETERS_FILE = 'nn_params.txt'
 
 if  FPS <= 0:
 	raise ValueError('FPS should be positive numbers!')
@@ -645,6 +646,49 @@ class Agent:
 			number_of_epochs=5,
 			verbose=False
 		)
+
+
+def train_agent(resume: bool = False, episodes: int = 20):
+	agent = Agent()
+	game = SnakeGame()
+
+	total_reward: float = 0
+
+	if resume:
+		try:
+			with open('params.txt', 'r') as file:
+				eps = float(file.read().strip())
+				agent.epsilon = eps
+
+			agent.network.load_params_from_file(PARAMETERS_FILE)
+		except FileNotFoundError:
+			print('No trained file was found, training from scratch!')
+
+
+	for episode in range(1, episodes+1):
+		if episode%1 == 0:
+			print(f'Episode {episode}:\t{total_reward=:.1f}, {agent.epsilon=:.3f}')
+
+		game.reset()
+
+		state = game.get_state()
+
+		done = False
+
+		while not done:
+			ai_action = agent.choose_action(state)
+
+			next_state, reward, done = game.step()
+
+			agent.update(state, ai_action, reward, next_state, done)
+
+			state = next_state
+
+		agent.decay_epsilon()
+
+	agent.network.save_parameters_to_file(PARAMETERS_FILE)
+	with open('params.txt', 'w') as file:
+		file.write(f'{agent.epsilon}')
 
 
 if __name__ == '__main__':
