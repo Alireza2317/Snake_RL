@@ -12,8 +12,8 @@ INCREMENT_SPEED = False
 SCALE = 1.0065
 
 # dimensions
-WN: int = 12
-HN: int = 12
+WN: int = 10
+HN: int = 10
 BLOCK_SIZE = 50
 
 PD = 50
@@ -88,6 +88,7 @@ class Position:
 
 	def __repr__(self) -> str:
 		return str(self.astuple)
+
 
 
 class SnakeGame:
@@ -554,8 +555,8 @@ class Agent:
 	def __init__(self, train_mode: bool = False) -> None:
 		# creating the neural network
 		self.network = NeuralNetwork(
-			layers_structure=[WN*HN+4, 32, 32, 4],
-			activations='tanh'
+			layers_structure=[WN*HN+4, 16, 16, 4],
+			activations='relu'
 		)
 
 		self.network.weights = [
@@ -568,10 +569,10 @@ class Agent:
 		]
 
 		# discount factor
-		self.gamma: float = 0.9
+		self.gamma: float = 0.97
 
 		# learning rate
-		self.alpha: float = 0.002
+		self.alpha: float = 0.0005
 
 		# epsilon-greedy policy for explore-exploit trade-off
 		# should decay over training to lower the exploration
@@ -669,8 +670,8 @@ def train_agent(resume: bool = False, episodes: int = 20):
 
 
 	for episode in range(1, episodes+1):
-		if episode%1 == 0:
-			print(f'Episode {episode}:\t{total_reward=:.1f}, {agent.epsilon=:.3f}')
+		steps_survived: int = 0
+		episode_reward: float = 0
 
 		game.reset()
 
@@ -679,26 +680,31 @@ def train_agent(resume: bool = False, episodes: int = 20):
 		done = False
 
 		while not done:
+			steps_survived += 1
 			ai_action: str = agent.choose_action(state)
 			game.action = ai_action
 
 			next_state, reward, done = game.step()
 
-			if game.action == 'u':
-				action = 0
-			elif game.action == 'r':
-				action = 1
-			elif game.action == 'd':
-				action = 2
-			elif game.action == 'l':
-				action = 3
+			action_map = {
+				'u': 0,
+				'r': 1,
+				'd': 2,
+				'l': 3
+			}
+
+			action: int = action_map[ai_action]
 
 			agent.update(state, action, reward, next_state, done)
-			total_reward += reward
+			episode_reward += reward
 
 			state = next_state
 
 		agent.decay_epsilon()
+		total_reward += episode_reward
+
+		if episode%20 == 0:
+			print(f'Episode {episode}:\t{total_reward=:.1f}, {episode_reward=:.1f}, {steps_survived=}, {agent.epsilon=:.3f}')
 
 	agent.network.save_parameters_to_file(PARAMETERS_FILE)
 	with open('params.txt', 'w') as file:
@@ -706,4 +712,4 @@ def train_agent(resume: bool = False, episodes: int = 20):
 
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=20000)
+	train_agent(resume=False, episodes=2000)
