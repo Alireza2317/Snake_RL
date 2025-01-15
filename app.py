@@ -280,7 +280,7 @@ class SnakeGame:
 		# check collisions
 		self.game_over = self.hit_self() or self.hit_wall()
 		if self.game_over:
-			print('You lost!')
+			#print('You lost!')
 			reward = -1
 
 		# update the world
@@ -314,15 +314,24 @@ class SnakeGame:
 	def get_state(self) -> list[float]:
 		"""
 		returning the current game state which consists of:
-		1. snake's body parts -> 1
-		2. snake's head -> 2
-		3. food -> 5
-		4. empty cells -> 0
-		5. direction of the snake:
+		- current direction of the snake:
 			a binary list of 4 numbers as: [up, right, down, left]
+		- snake's body parts -> 1
+		- snake's head -> 2
+		- food -> 5
+		- empty cells -> 0
 		"""
-
 		state: list[float] = []
+
+		if self.direction == 'u':
+			state.extend([1, 0, 0, 0])
+		elif self.direction == 'r':
+			state.extend([0, 1, 0, 0])
+		elif self.direction == 'd':
+			state.extend([0, 0, 1, 0])
+		elif self.direction == 'l':
+			state.extend([0, 0, 0, 1])
+
 		for row in self.world:
 			for cell in row:
 				if cell == '':
@@ -333,15 +342,6 @@ class SnakeGame:
 					state.append(1)
 				elif cell == 'f':
 					state.append(5)
-
-		if self.direction == 'u':
-			state.extend([1, 0, 0, 0])
-		elif self.direction == 'r':
-			state.extend([0, 1, 0, 0])
-		elif self.direction == 'd':
-			state.extend([0, 0, 1, 0])
-		elif self.direction == 'l':
-			state.extend([0, 0, 0, 0])
 
 		return state
 
@@ -581,12 +581,14 @@ class Agent:
 			self.epsilon: float = 0
 
 
-	def choose_action(self, state: list[int]) -> int:
+	def choose_action(self, state: list[int]) -> str:
 		"""
 		chooses and returns a move based on the current state
+		the action is in the form of a string in a form of:
+		'u', 'r', 'd', 'l'
 		"""
 
-		actions = ['u', 'd', 'r', 'l']
+		actions: list[str] = ['u', 'r', 'd', 'l']
 
 		# with probability epsilon, pick a random action
 		if random() < self.epsilon:
@@ -594,9 +596,10 @@ class Agent:
 
 		# otherwise pick the action with the highest Q(a, s)
 		else:
+			# these would be a list with four elements
+			# each represents one direction
 			q_values = self.network.predict_output(state)
-
-			return max(actions, key=lambda x: q_values[x])
+			return actions[np.argmax(q_values)]
 
 
 	def decay_epsilon(self) -> None:
@@ -608,10 +611,10 @@ class Agent:
 
 	def update(
 			self,
-			state: list[int],
+			state: list[float],
 			action: int,
 			reward: float,
-			next_state: list[int],
+			next_state: list[float],
 			done: bool
 	) -> None:
 		"""
@@ -649,7 +652,7 @@ class Agent:
 
 
 def train_agent(resume: bool = False, episodes: int = 20):
-	agent = Agent()
+	agent = Agent(train_mode=True)
 	game = SnakeGame()
 
 	total_reward: float = 0
@@ -676,11 +679,22 @@ def train_agent(resume: bool = False, episodes: int = 20):
 		done = False
 
 		while not done:
-			ai_action = agent.choose_action(state)
+			ai_action: str = agent.choose_action(state)
+			game.action = ai_action
 
 			next_state, reward, done = game.step()
 
-			agent.update(state, ai_action, reward, next_state, done)
+			if game.action == 'u':
+				action = 0
+			elif game.action == 'r':
+				action = 1
+			elif game.action == 'd':
+				action = 2
+			elif game.action == 'l':
+				action = 3
+
+			agent.update(state, action, reward, next_state, done)
+			total_reward += reward
 
 			state = next_state
 
@@ -692,13 +706,4 @@ def train_agent(resume: bool = False, episodes: int = 20):
 
 
 if __name__ == '__main__':
-	game: SnakeGame = SnakeGameGUI(render_enabled=True)
-
-	while True:
-		game_over = game.step()
-
-		if game_over:
-			break
-
-	pg.quit()
-	sys.exit()
+	train_agent(resume=False, episodes=20000)
