@@ -194,14 +194,14 @@ class SnakeGame:
 	def generate_food(self) -> None:
 		valid_cells: list[Position] = []
 		for r, row in enumerate(self.world):
-				for c, cell in enumerate(row):
-					pos = Position(x=c, y=r)
-					if not hasattr(self, 'food'):
-						if not self.hit_position(pos):
-							valid_cells.append(pos)
-					else:
-						if cell == '':
-							valid_cells.append(pos)
+			for c, cell in enumerate(row):
+				pos = Position(x=c, y=r)
+				if not hasattr(self, 'food'):
+					if not self.hit_position(pos):
+						valid_cells.append(pos)
+				else:
+					if cell == '':
+						valid_cells.append(pos)
 
 		self.food = choice(valid_cells)
 
@@ -284,10 +284,10 @@ class SnakeGame:
 		print('___________')
 
 
-	def get_state(self) -> list[int]:
+	def get_state(self) -> list[float]:
 		"""
 		returning the current game state which consists of 14 elements:
-		* int values
+		* float values normalized
 			- food_x_dist
 			- food_y_dist
 			- up_wall_dist
@@ -305,13 +305,13 @@ class SnakeGame:
 			- left_direction
 		"""
 
-		food_x_dist = self.food.x -  self.head.x
-		food_y_dist = self.food.y -  self.head.y
+		food_x_dist = (self.food.x -  self.head.x) / WN
+		food_y_dist = (self.food.y -  self.head.y) / HN
 
-		up_wall_dist = self.head.y
-		right_wall_dist = WN - self.head.x
-		down_wall_dist = HN - self.head.y
-		left_wall_dist = self.head.x
+		up_wall_dist = (self.head.y) / HN
+		right_wall_dist = (WN - self.head.x) / WN
+		down_wall_dist = (HN - self.head.y) / HN
+		left_wall_dist = (self.head.x) / WN
 
 		up_self_danger = 0
 		right_self_danger = 0
@@ -326,7 +326,7 @@ class SnakeGame:
 		if self.hit_position((self.head.x-1, self.head.y)) and self.direction != Direction.RIGHT:
 			left_self_danger = 1
 
-		state: list[int] = [
+		state: list[float] = [
 			food_x_dist,
 			food_y_dist,
 			up_wall_dist,
