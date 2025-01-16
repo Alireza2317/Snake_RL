@@ -7,8 +7,8 @@ class Agent:
 	def __init__(self, train_mode: bool = False) -> None:
 		# creating the neural network
 		self.network = NeuralNetwork(
-			layers_structure=[14, 16, 16, 4],
-			activations='relu'
+			layers_structure=[14, 32, 32, 4],
+			activations='tanh'
 		)
 
 		self.network.weights = [
@@ -24,7 +24,7 @@ class Agent:
 		self.gamma: float = 0.97
 
 		# learning rate
-		self.alpha: float = 0.0005
+		self.alpha: float = 1e-5
 
 		# epsilon-greedy policy for explore-exploit trade-off
 		# should decay over training to lower the exploration
@@ -58,7 +58,7 @@ class Agent:
 		"""
 			decay epsilon over time to minimize exploration
 		"""
-		self.epsilon = max(0.1, self.epsilon * 0.995)
+		self.epsilon = max(0.1, self.epsilon * 0.998)
 
 
 	def update(
