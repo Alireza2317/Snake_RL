@@ -2,6 +2,8 @@ import numpy as np
 from collections.abc import Callable
 from datetime import datetime
 
+np.random.seed(23)
+
 class NeuralNetwork:
 	def __init__(
 		self,

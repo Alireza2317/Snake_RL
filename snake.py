@@ -3,9 +3,9 @@ import pygame as pg
 from copy import deepcopy
 from collections import namedtuple
 from enum import Enum
-from random import choice
+from random import choice, seed
 
-
+seed(23)
 
 # speed. the higher the fps, the faster the game
 FPS = 6

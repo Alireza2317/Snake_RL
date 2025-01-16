@@ -1,7 +1,9 @@
 from nn import NeuralNetwork
 import numpy as np
-from random import choice, random
+from random import choice, random, seed
 from snake import Direction
+
+seed(23)
 
 class Agent:
 	def __init__(self, train_mode: bool = False) -> None:
@@ -98,6 +100,6 @@ class Agent:
 			learning_rate=self.alpha,
 			constant_lr=True,
 			batch_size=1,
-			number_of_epochs=5,
+			number_of_epochs=2,
 			verbose=False
 		)
