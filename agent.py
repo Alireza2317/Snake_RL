@@ -1,9 +1,29 @@
 from nn import NeuralNetwork
 import numpy as np
-from random import choice, random, seed
+import random
 from snake import Direction
+from collections import deque
 
-seed(23)
+random.seed(23)
+
+class ReplayBuffer:
+	def __init__(self, capacity: int) -> None:
+		self.buffer = deque(maxlen=capacity)
+
+
+	def add(self, state, action, reward, next_state, done) -> None:
+		self.buffer.append(
+			(state, action, reward, next_state, done)
+		)
+
+
+	def sample(self, batch_size: int) -> list[tuple]:
+		return random.sample(self.buffer, batch_size)
+
+
+	def __len__(self) -> int:
+		return len(self.buffer)
+
 
 class Agent:
 	def __init__(self, train_mode: bool = False) -> None:
