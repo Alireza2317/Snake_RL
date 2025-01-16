@@ -310,7 +310,7 @@ class SnakeGame:
 
 
 
-class SnakeGameGUI:
+class SnakeGameGUI(SnakeGame):
 	"""
 	handles all the graphical features and rendering the snake game
 	"""
@@ -350,7 +350,9 @@ class SnakeGameGUI:
 
 
 	def __init__(self) -> None:
-		self.game = SnakeGame()
+		super().__init__()
+
+		#self.game = SnakeGame()
 
 		pg.init()
 		self.screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -367,14 +369,15 @@ class SnakeGameGUI:
 
 	def update_world(self) -> None:
 		"""
-		updates self.world from self.game.world out of Block objects instead of simple strings
+		updates self.world from SnakeGame.world out of Block objects instead of simple strings
 		"""
+
+		super().update_world()
+
 		if SHAPE == 'circle':
 			radiuses = tuple([BLOCK_SIZE for _ in range(4)])
 		else:
 			radiuses = tuple([0 for _ in range(4)])
-
-		self.world = deepcopy(self.game.world)
 
 		for r, row in enumerate(self.world):
 			for c, cell in enumerate(row):
@@ -488,9 +491,9 @@ class SnakeGameGUI:
 						self.fps -= 1
 
 		# stepping the game with a random move
-		self.game.action = choice(['u', 'd', 'r', 'l'])
+		self.action = choice(['u', 'd', 'r', 'l'])
 
-		state, reward, done = self.game.step()
+		state, reward, done = super().step()
 
 		self.update_world()
 
@@ -498,7 +501,7 @@ class SnakeGameGUI:
 		# draw the whole game world and the score
 		self.draw_world()
 
-		info = self.font.render(f'Score = {self.game.score} ------- FPS = {self.fps:.0f}', True, FONT_COLOR)
+		info = self.font.render(f'Score = {self.score} ------- FPS = {self.fps:.0f}', True, FONT_COLOR)
 		self.screen.blit(info, (PD, int(PD/5)))
 
 		pg.display.update()
@@ -669,4 +672,9 @@ def train_agent(resume: bool = False, episodes: int = 20):
 
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=2000)
+	#train_agent(resume=False, episodes=2000)
+	g = SnakeGameGUI()
+	while True:
+		_, _, done = g.step()
+
+		if done: break
