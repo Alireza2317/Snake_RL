@@ -68,6 +68,21 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 
 
 
+def play():
+	game = SnakeGameGUI()
+	agent = Agent(train_mode=False)
+	agent.network.load_params_from_file('nn_params.txt')
+
+	while True:
+		state = game.get_state()
+		game.action = agent.choose_action(state)
+
+		_, _, done = game.step()
+
+		if done:
+			game.reset()
+
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=1000, render=True)
+	#train_agent(resume=True, episodes=20000, render=False)
+	play()
