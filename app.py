@@ -4,6 +4,7 @@ import pygame as pg
 from random import choice, random
 from copy import deepcopy
 from nn import NeuralNetwork
+from collections import namedtuple
 
 # speed. the higher the fps, the faster the game
 FPS = 3
@@ -54,41 +55,7 @@ if WIDTH > 1920 or HEIGHT > 1080:
 	raise ValueError('Consider reducing WN and HN or BLOCK_SIZE! Too big for most screens!')
 
 
-class Position:
-	"""
-	Position class that acts as coordinates in a 2d plane
-	"""
-	def __init__(self, x: int, y: int) -> None:
-		self.x = x
-		self.y = y
-
-
-	def __eq__(self, other: tuple | object) -> bool:
-		if isinstance(other, tuple):
-			return self.astuple == other
-
-		elif isinstance(other, Position):
-			return ((self.x == other.x) and (self.y == other.y))
-
-		return False
-
-	def __ne__(self, other: tuple | object) -> bool:
-		if isinstance(other, tuple):
-			return self.astuple != other
-
-		elif isinstance(other, Position):
-			return ((self.x != other.x) or (self.y != other.y))
-
-		return False
-
-	@property
-	def astuple(self):
-		return (self.x, self.y)
-
-
-	def __repr__(self) -> str:
-		return str(self.astuple)
-
+Position = namedtuple('Position', ['x', 'y'])
 
 
 class SnakeGame:
@@ -174,23 +141,18 @@ class SnakeGame:
 
 
 	def move(self) -> None:
-		# find out the new position of the head
-		new_head = Position(*self.head.astuple)
-
 		# remove the last body part and save it
 		self._left_over = self.snake.pop()
 
-
 		match self.direction:
 			case 'r':
-				new_head.x += 1
+				new_head = Position(self.head.x+1, self.head.y)
 			case 'l':
-				new_head.x -= 1
+				new_head = Position(self.head.x-1, self.head.y)
 			case 'd':
-				new_head.y += 1
+				new_head = Position(self.head.x, self.head.y+1)
 			case 'u':
-				new_head.y -= 1
-
+				new_head = Position(self.head.x, self.head.y-1)
 
 		# all body parts are the same
 		# except the first and the last Position (head and tail)
