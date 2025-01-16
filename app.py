@@ -8,7 +8,7 @@ from collections import namedtuple
 from enum import Enum
 
 # speed. the higher the fps, the faster the game
-FPS = 3
+FPS = 6
 # if set to true, will scale up the fps after eating a food
 INCREMENT_SPEED = False
 SCALE = 1.0065
@@ -309,21 +309,21 @@ class SnakeGame:
 		food_y_dist = self.food.y -  self.head.y
 
 		up_wall_dist = self.head.y
-		right_wall_dist = WN - self.head.y
+		right_wall_dist = WN - self.head.x
 		down_wall_dist = HN - self.head.y
-		left_wall_dist = self.head.y
+		left_wall_dist = self.head.x
 
 		up_self_danger = 0
 		right_self_danger = 0
 		down_self_danger = 0
 		left_self_danger = 0
-		if self.hit_position((self.head.x, self.head.y-1)):
+		if self.hit_position((self.head.x, self.head.y-1)) and self.direction != Direction.DOWN:
 			up_self_danger = 1
-		if self.hit_position((self.head.x+1, self.head.y)):
+		if self.hit_position((self.head.x+1, self.head.y)) and self.direction != Direction.LEFT:
 			right_self_danger = 1
-		if self.hit_position((self.head.x, self.head.y+1)):
+		if self.hit_position((self.head.x, self.head.y+1)) and self.direction != Direction.UP:
 			down_self_danger = 1
-		if self.hit_position((self.head.x-1, self.head)):
+		if self.hit_position((self.head.x-1, self.head.y)) and self.direction != Direction.RIGHT:
 			left_self_danger = 1
 
 		state: list[int] = [
@@ -653,9 +653,12 @@ class Agent:
 		)
 
 
-def train_agent(resume: bool = False, episodes: int = 20):
+def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 	agent = Agent(train_mode=True)
-	game = SnakeGameGUI()
+	if render:
+		game = SnakeGameGUI()
+	else:
+		game = SnakeGame()
 
 	total_reward: float = 0
 
@@ -696,8 +699,10 @@ def train_agent(resume: bool = False, episodes: int = 20):
 		agent.decay_epsilon()
 		total_reward += episode_reward
 
-		if episode%20 == 0:
+		if episode%1 == 0:
 			print(f'Episode {episode}:\t{total_reward=:.1f}, {episode_reward=:.1f}, {steps_survived=}, {agent.epsilon=:.3f}')
+			print(game.get_state())
+			game.pretty_print()
 
 	agent.network.save_parameters_to_file(PARAMETERS_FILE)
 	with open('params.txt', 'w') as file:
@@ -705,5 +710,5 @@ def train_agent(resume: bool = False, episodes: int = 20):
 
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=2000)
+	train_agent(resume=False, episodes=1, render=True)
 	#break
