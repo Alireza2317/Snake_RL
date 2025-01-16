@@ -284,17 +284,60 @@ class SnakeGame:
 		print('___________')
 
 
-	def get_state(self) -> list[float]:
+	def get_state(self) -> list[int]:
 		"""
-		returning the current game state which consists of:
-		- current direction of the snake:
-			a binary list of 4 numbers as: [up, right, down, left]
-		- snake's body parts -> 1
-		- snake's head -> 2
-		- food -> 5
-		- empty cells -> 0
+		returning the current game state which consists of 14 elements:
+		* int values
+			- food_x_dist
+			- food_y_dist
+			- up_wall_dist
+			- right_wall_dist
+			- down_wall_dist
+			- left_wall_dist
+		* binary values
+			- up_self_danger
+			- right_self_danger
+			- down_self_danger
+			- left_self_danger
+			- up_direction
+			- right_direction
+			- down_direction
+			- left_direction
 		"""
-		state: list[float] = []
+
+		food_x_dist = self.food.x -  self.head.x
+		food_y_dist = self.food.y -  self.head.y
+
+		up_wall_dist = self.head.y
+		right_wall_dist = WN - self.head.y
+		down_wall_dist = HN - self.head.y
+		left_wall_dist = self.head.y
+
+		up_self_danger = 0
+		right_self_danger = 0
+		down_self_danger = 0
+		left_self_danger = 0
+		if self.hit_position((self.head.x, self.head.y-1)):
+			up_self_danger = 1
+		if self.hit_position((self.head.x+1, self.head.y)):
+			right_self_danger = 1
+		if self.hit_position((self.head.x, self.head.y+1)):
+			down_self_danger = 1
+		if self.hit_position((self.head.x-1, self.head)):
+			left_self_danger = 1
+
+		state: list[int] = [
+			food_x_dist,
+			food_y_dist,
+			up_wall_dist,
+			right_wall_dist,
+			down_wall_dist,
+			left_wall_dist,
+			up_self_danger,
+			right_self_danger,
+			down_self_danger,
+			left_self_danger
+		]
 
 		if self.direction == Direction.UP:
 			state.extend([1, 0, 0, 0])
@@ -304,17 +347,6 @@ class SnakeGame:
 			state.extend([0, 0, 1, 0])
 		elif self.direction == Direction.LEFT:
 			state.extend([0, 0, 0, 1])
-
-		for row in self.world:
-			for cell in row:
-				if cell == '':
-					state.append(0)
-				elif cell == 'h':
-					state.append(2)
-				elif cell == 's':
-					state.append(1)
-				elif cell == 'f':
-					state.append(5)
 
 		return state
 
@@ -362,8 +394,6 @@ class SnakeGameGUI(SnakeGame):
 	def __init__(self) -> None:
 		super().__init__()
 
-		#self.game = SnakeGame()
-
 		pg.init()
 		self.screen = pg.display.set_mode((WIDTH, HEIGHT))
 		pg.display.set_caption('Snake Game')
@@ -373,16 +403,18 @@ class SnakeGameGUI(SnakeGame):
 
 		self.fps = FPS
 
-		# updates self.world from self.game.world
+		# updates self.gui_world from self.world
 		self.update_world()
 
 
-	def update_world(self) -> None:
+	def update_gui_world(self) -> None:
 		"""
 		updates self.world from SnakeGame.world out of Block objects instead of simple strings
 		"""
 
 		super().update_world()
+
+		self.gui_world = deepcopy(self.world)
 
 		if SHAPE == 'circle':
 			radiuses = tuple([BLOCK_SIZE for _ in range(4)])
@@ -402,7 +434,7 @@ class SnakeGameGUI(SnakeGame):
 
 				# snake's head block
 				if cell == 'h':
-					self.world[r][c] = self.Block(
+					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
 						color=SNAKE_HEAD_COLOR,
 						kind=cell,
@@ -410,7 +442,7 @@ class SnakeGameGUI(SnakeGame):
 					)
 
 				elif cell == 's':
-					self.world[r][c] = self.Block(
+					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
 						color=SNAKE_COLOR,
 						kind=cell,
@@ -418,7 +450,7 @@ class SnakeGameGUI(SnakeGame):
 					)
 
 				elif cell == 'f':
-					self.world[r][c] = self.Block(
+					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
 						color=FOOD_COLOR,
 						kind=cell,
@@ -426,7 +458,7 @@ class SnakeGameGUI(SnakeGame):
 					)
 
 				else: # just the empty world block
-					self.world[r][c] = self.Block(
+					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
 						color=GRID_COLOR,
 						border=1,
@@ -439,10 +471,10 @@ class SnakeGameGUI(SnakeGame):
 
 		for r in range(HN):
 			for c in range(WN):
-				block = self.world[r][c].block
-				block_color = self.world[r][c].color
-				border = self.world[r][c].border
-				radiuses = self.world[r][c].border_radius
+				block = self.gui_world[r][c].block
+				block_color = self.gui_world[r][c].color
+				border = self.gui_world[r][c].border
+				radiuses = self.gui_world[r][c].border_radius
 
 				pg.draw.rect(
 					self.screen,
@@ -494,7 +526,7 @@ class SnakeGameGUI(SnakeGame):
 
 			if event.type == pg.KEYDOWN:
 				if event.key == pg.K_KP_PLUS:
-					if self.fps + 1 <= 25:
+					if self.fps + 1 <= 60:
 						self.fps += 1
 				elif event.key == pg.K_KP_MINUS:
 					if self.fps - 1 > 0:
@@ -505,7 +537,7 @@ class SnakeGameGUI(SnakeGame):
 
 		state, reward, done = super().step()
 
-		self.update_world()
+		self.update_gui_world()
 
 
 		# draw the whole game world and the score
@@ -525,7 +557,7 @@ class Agent:
 	def __init__(self, train_mode: bool = False) -> None:
 		# creating the neural network
 		self.network = NeuralNetwork(
-			layers_structure=[WN*HN+4, 16, 16, 4],
+			layers_structure=[14, 16, 16, 4],
 			activations='relu'
 		)
 
@@ -655,7 +687,8 @@ def train_agent(resume: bool = False, episodes: int = 20):
 
 			next_state, reward, done = game.step()
 
-			agent.update(state, game.action, reward, next_state, done)
+			action: int = game.action.value
+			agent.update(state, action, reward, next_state, done)
 			episode_reward += reward
 
 			state = next_state
@@ -672,5 +705,5 @@ def train_agent(resume: bool = False, episodes: int = 20):
 
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=20)
+	train_agent(resume=False, episodes=2000)
 	#break
