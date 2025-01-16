@@ -65,8 +65,8 @@ class Agent:
 		actions: list[Direction] = list(Direction)
 
 		# with probability epsilon, pick a random action
-		if random() < self.epsilon:
-			return choice(actions)
+		if random.random() < self.epsilon:
+			return random.choice(actions)
 
 		# otherwise pick the action with the highest Q(a, s)
 		else:
