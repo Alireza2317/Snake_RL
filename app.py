@@ -84,5 +84,5 @@ def play():
 
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=2000, render=False)
+	train_agent(resume=False, episodes=5000, render=False)
 	#play()

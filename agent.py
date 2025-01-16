@@ -9,7 +9,7 @@ class Agent:
 	def __init__(self, train_mode: bool = False) -> None:
 		# creating the neural network
 		self.network = NeuralNetwork(
-			layers_structure=[14, 32, 32, 4],
+			layers_structure=[14, 48, 48, 4],
 			activations='tanh'
 		)
 
@@ -23,15 +23,15 @@ class Agent:
 		]
 
 		# discount factor
-		self.gamma: float = 0.97
+		self.gamma: float = 0.91
 
 		# learning rate
-		self.alpha: float = 1e-5
+		self.alpha: float = 3e-3
 
 		# epsilon-greedy policy for explore-exploit trade-off
 		# should decay over training to lower the exploration
 		if train_mode:
-			self.epsilon: float = 1
+			self.epsilon: float = 2
 		else:
 			self.epsilon: float = 0
 
@@ -98,7 +98,8 @@ class Agent:
 			x_train=state,
 			y_train=target_q_values,
 			learning_rate=self.alpha,
-			constant_lr=True,
+			decay_rate=0.99999,
+			constant_lr=False,
 			batch_size=1,
 			number_of_epochs=2,
 			verbose=False

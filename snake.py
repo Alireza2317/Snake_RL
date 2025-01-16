@@ -234,7 +234,10 @@ class SnakeGame:
 			reward
 			game_over flag
 		"""
-		reward: float = 0
+
+		# reward for staying alive but not eating food
+		# avoid encouraging the agent to just stay alive and not eat food
+		reward: float = -0.02
 
 		self.turn(self.action)
 
@@ -244,7 +247,8 @@ class SnakeGame:
 		if self.ate_food():
 			self.grow()
 			self.score += 1
-			reward = 1
+			# reward for eating food
+			reward = 3
 
 			if not self.is_world_full():
 				self.generate_food()
@@ -253,7 +257,7 @@ class SnakeGame:
 		# check collisions
 		self.game_over = self.hit_self() or self.hit_wall()
 		if self.game_over:
-			#print('You lost!')
+			# reward for dying
 			reward = -1
 
 		# update the world
