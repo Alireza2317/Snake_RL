@@ -349,22 +349,20 @@ class SnakeGameGUI:
 			return self.kind
 
 
-	def __init__(self, render_enabled: bool = True) -> None:
-		self.render_enabled = render_enabled
+	def __init__(self) -> None:
 		self.game = SnakeGame()
 
-		if self.render_enabled:
-			pg.init()
-			self.screen = pg.display.set_mode((WIDTH, HEIGHT))
-			pg.display.set_caption('Snake Game')
-			self.clock = pg.time.Clock()
+		pg.init()
+		self.screen = pg.display.set_mode((WIDTH, HEIGHT))
+		pg.display.set_caption('Snake Game')
+		self.clock = pg.time.Clock()
 
-			self.font = pg.font.Font(pg.font.get_default_font(), FONT_SIZE)
+		self.font = pg.font.Font(pg.font.get_default_font(), FONT_SIZE)
 
-			self.fps = FPS
+		self.fps = FPS
 
-			# updates self.world from self.game.world
-			self.update_world()
+		# updates self.world from self.game.world
+		self.update_world()
 
 
 	def update_world(self) -> None:
@@ -474,10 +472,7 @@ class SnakeGameGUI:
 			pg.display.update()
 
 
-	def step(self) -> bool:
-		if not self.render_enabled:
-			return self.game.game_over
-
+	def step(self) -> tuple[list[float], float, bool]:
 		# get user input in event loop
 		for event in pg.event.get():
 			if event.type == pg.QUIT:
@@ -495,7 +490,7 @@ class SnakeGameGUI:
 		# stepping the game with a random move
 		self.game.action = choice(['u', 'd', 'r', 'l'])
 
-		self.game.step()
+		state, reward, done = self.game.step()
 
 		self.update_world()
 
@@ -509,7 +504,7 @@ class SnakeGameGUI:
 		pg.display.update()
 		self.clock.tick(self.fps)
 
-		return self.game.game_over
+		return state, reward, done
 
 
 
@@ -616,7 +611,7 @@ class Agent:
 
 def train_agent(resume: bool = False, episodes: int = 20):
 	agent = Agent(train_mode=True)
-	game = SnakeGame()
+	gui = SnakeGameGUI()
 
 	total_reward: float = 0
 
@@ -635,18 +630,18 @@ def train_agent(resume: bool = False, episodes: int = 20):
 		steps_survived: int = 0
 		episode_reward: float = 0
 
-		game.reset()
+		gui.game.reset()
 
-		state = game.get_state()
+		state = gui.game.get_state()
 
 		done = False
 
 		while not done:
 			steps_survived += 1
 			ai_action: str = agent.choose_action(state)
-			game.action = ai_action
+			gui.game.action = ai_action
 
-			next_state, reward, done = game.step()
+			next_state, reward, done = gui.step()
 
 			action_map = {
 				'u': 0,
