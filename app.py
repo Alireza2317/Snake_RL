@@ -5,6 +5,7 @@ from random import choice, random
 from copy import deepcopy
 from nn import NeuralNetwork
 from collections import namedtuple
+from enum import Enum
 
 # speed. the higher the fps, the faster the game
 FPS = 3
@@ -57,6 +58,12 @@ if WIDTH > 1920 or HEIGHT > 1080:
 
 Position = namedtuple('Position', ['x', 'y'])
 
+class Direction(Enum):
+	UP = 0
+	RIGHT = 1
+	DOWN = 2
+	LEFT = 3
+
 
 class SnakeGame:
 	"""
@@ -67,8 +74,8 @@ class SnakeGame:
 
 
 	def reset(self) -> None:
-		self.direction: str = 'r'
-		self.action: str = 'r'
+		self.direction: Direction = Direction.RIGHT
+		self.action: Direction = Direction.RIGHT
 
 		# first element will be the head
 		self.snake: list[Position] = [
@@ -126,11 +133,14 @@ class SnakeGame:
 		return self.snake[0]
 
 
-	def turn(self, dir_to_turn: str) -> None:
-		if self.direction in ('u', 'd') and dir_to_turn in ('u', 'd'):
+	def turn(self, dir_to_turn: Direction) -> None:
+		verticals = (Direction.DOWN, Direction.UP)
+		horizentals = (Direction.LEFT, Direction.RIGHT)
+
+		if self.direction in verticals and dir_to_turn in verticals:
 			return
 
-		elif self.direction in ('r', 'l') and dir_to_turn in ('r', 'l'):
+		elif self.direction in horizentals and dir_to_turn in horizentals:
 			return
 
 		self.direction = dir_to_turn
@@ -145,13 +155,13 @@ class SnakeGame:
 		self._left_over = self.snake.pop()
 
 		match self.direction:
-			case 'r':
+			case Direction.RIGHT:
 				new_head = Position(self.head.x+1, self.head.y)
-			case 'l':
+			case Direction.LEFT:
 				new_head = Position(self.head.x-1, self.head.y)
-			case 'd':
+			case Direction.DOWN:
 				new_head = Position(self.head.x, self.head.y+1)
-			case 'u':
+			case Direction.UP:
 				new_head = Position(self.head.x, self.head.y-1)
 
 		# all body parts are the same
@@ -286,13 +296,13 @@ class SnakeGame:
 		"""
 		state: list[float] = []
 
-		if self.direction == 'u':
+		if self.direction == Direction.UP:
 			state.extend([1, 0, 0, 0])
-		elif self.direction == 'r':
+		elif self.direction == Direction.RIGHT:
 			state.extend([0, 1, 0, 0])
-		elif self.direction == 'd':
+		elif self.direction == Direction.DOWN:
 			state.extend([0, 0, 1, 0])
-		elif self.direction == 'l':
+		elif self.direction == Direction.LEFT:
 			state.extend([0, 0, 0, 1])
 
 		for row in self.world:
@@ -491,7 +501,7 @@ class SnakeGameGUI(SnakeGame):
 						self.fps -= 1
 
 		# stepping the game with a random move
-		self.action = choice(['u', 'd', 'r', 'l'])
+		self.action = choice(list(Direction))
 
 		state, reward, done = super().step()
 
@@ -542,14 +552,13 @@ class Agent:
 			self.epsilon: float = 0
 
 
-	def choose_action(self, state: list[int]) -> str:
+	def choose_action(self, state: list[float]) -> Direction:
 		"""
 		chooses and returns a move based on the current state
-		the action is in the form of a string in a form of:
-		'u', 'r', 'd', 'l'
+		the action is in the form of a Direction enum
 		"""
 
-		actions: list[str] = ['u', 'r', 'd', 'l']
+		actions: list[Direction] = list(Direction)
 
 		# with probability epsilon, pick a random action
 		if random() < self.epsilon:
@@ -614,7 +623,7 @@ class Agent:
 
 def train_agent(resume: bool = False, episodes: int = 20):
 	agent = Agent(train_mode=True)
-	gui = SnakeGameGUI()
+	game = SnakeGameGUI()
 
 	total_reward: float = 0
 
@@ -633,29 +642,20 @@ def train_agent(resume: bool = False, episodes: int = 20):
 		steps_survived: int = 0
 		episode_reward: float = 0
 
-		gui.game.reset()
+		game.reset()
 
-		state = gui.game.get_state()
+		state = game.get_state()
 
 		done = False
 
 		while not done:
 			steps_survived += 1
-			ai_action: str = agent.choose_action(state)
-			gui.game.action = ai_action
+			ai_action: Direction = agent.choose_action(state)
+			game.action = ai_action
 
-			next_state, reward, done = gui.step()
+			next_state, reward, done = game.step()
 
-			action_map = {
-				'u': 0,
-				'r': 1,
-				'd': 2,
-				'l': 3
-			}
-
-			action: int = action_map[ai_action]
-
-			agent.update(state, action, reward, next_state, done)
+			agent.update(state, game.action, reward, next_state, done)
 			episode_reward += reward
 
 			state = next_state
@@ -672,9 +672,5 @@ def train_agent(resume: bool = False, episodes: int = 20):
 
 
 if __name__ == '__main__':
-	#train_agent(resume=False, episodes=2000)
-	g = SnakeGameGUI()
-	while True:
-		_, _, done = g.step()
-
-		if done: break
+	train_agent(resume=False, episodes=20)
+	#break
