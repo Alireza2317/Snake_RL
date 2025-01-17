@@ -2,4 +2,4 @@ venv/
 pics/
 .directory
 **.pyc
-./params/
+params/
