@@ -319,13 +319,30 @@ class SnakeGame:
 		right_self_danger = 0
 		down_self_danger = 0
 		left_self_danger = 0
-		if self.hit_position((self.head.x, self.head.y-1)) and self.direction != Direction.DOWN:
+
+		# these are needed because we want to ignore the snake's body(neck)
+		# based on its direction
+		dir_down: bool = self.direction == Direction.DOWN
+		dir_left: bool = self.direction == Direction.LEFT
+		dir_up: bool = self.direction == Direction.UP
+		dir_right: bool = self.direction == Direction.RIGHT
+
+		# these happen when the snake turns in that direction
+		dies_if_turned_up: bool = self.hit_position((self.head.x, self.head.y-1))
+		dies_if_turned_right: bool = self.hit_position((self.head.x+1, self.head.y))
+		dies_if_turned_down: bool = self.hit_position((self.head.x, self.head.y+1))
+		dies_if_turned_left: bool = self.hit_position((self.head.x-1, self.head.y))
+
+		if dies_if_turned_up and not dir_down:
 			up_self_danger = 1
-		if self.hit_position((self.head.x+1, self.head.y)) and self.direction != Direction.LEFT:
+
+		if dies_if_turned_right and not dir_left:
 			right_self_danger = 1
-		if self.hit_position((self.head.x, self.head.y+1)) and self.direction != Direction.UP:
+
+		if dies_if_turned_down and not dir_up:
 			down_self_danger = 1
-		if self.hit_position((self.head.x-1, self.head.y)) and self.direction != Direction.RIGHT:
+
+		if dies_if_turned_left and not dir_right:
 			left_self_danger = 1
 
 		state: list[float] = [
@@ -341,13 +358,13 @@ class SnakeGame:
 			left_self_danger
 		]
 
-		if self.direction == Direction.UP:
+		if dir_up:
 			state.extend([1, 0, 0, 0])
-		elif self.direction == Direction.RIGHT:
+		elif dir_right:
 			state.extend([0, 1, 0, 0])
-		elif self.direction == Direction.DOWN:
+		elif dir_down:
 			state.extend([0, 0, 1, 0])
-		elif self.direction == Direction.LEFT:
+		elif dir_left:
 			state.extend([0, 0, 0, 1])
 
 		return state
