@@ -13,6 +13,7 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 	total_reward: float = 0
 	episode_rewards = []
 	steps_survived_list = []
+	episodes_plot = []
 
 
 	if resume:
@@ -53,16 +54,22 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 		total_reward += episode_reward
 
 
-		if episode%20 == 0:
+		if episode % (episodes // 20) == 0:
+			episodes_plot.append(episode)
 			episode_rewards.append(episode_reward)
 			steps_survived_list.append(steps_survived)
-			print(f'Episode {episode}:\t{total_reward=:.1f}, {episode_reward=:.1f}, {steps_survived=}, {agent.epsilon=:.3f}')
+			print(
+				f'Episode {episode}:',
+				f'{total_reward=:.1f}, {episode_reward=:.1f}',
+				f'{steps_survived=}, {agent.epsilon=:.3f}',
+				sep=' '
+			)
 
 	agent.network.save_parameters_to_file(PARAMETERS_FILE)
 	with open('params.txt', 'w') as file:
 		file.write(f'{agent.epsilon}')
 
-	plt.plot(list(range(1, 1+episodes//20)), episode_rewards, list(range(1, 1+episodes//20)), steps_survived_list)
+	plt.plot(episodes_plot, episode_rewards, episodes_plot, steps_survived_list)
 	plt.legend(['ep rewards', 'survived'])
 	plt.show()
 
@@ -84,5 +91,4 @@ def play():
 
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=5000, render=False)
-	#play()
+	train_agent(resume=True, episodes=100, render=False)
