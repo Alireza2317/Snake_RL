@@ -26,32 +26,40 @@ class ReplayBuffer:
 
 
 class Agent:
-	def __init__(self, train_mode: bool = False) -> None:
+	def __init__(
+		self,
+		train_mode: bool = False,
+		buffer_capacity = 10000,
+		batch_size = 256
+	) -> None:
+		self.replay_buffer = ReplayBuffer(buffer_capacity)
+		self.batch_size = batch_size
+
 		# creating the neural network
 		self.network = NeuralNetwork(
-			layers_structure=[14, 48, 48, 4],
-			activations='tanh'
+			layers_structure=[14, 256, 4],
+			activations='relu'
 		)
 
-		self.network.weights = [
-			np.random.uniform(
-				-np.sqrt(6 / (shape[0]+shape[1])),
-				np.sqrt(6 / (shape[0]+shape[1])),
-				size=shape
-			)
-			for shape in self.network._weights_shapes
-		]
+		#self.network.weights = [
+		#	np.random.uniform(
+		#		-np.sqrt(6 / (shape[0]+shape[1])),
+		#		np.sqrt(6 / (shape[0]+shape[1])),
+		#		size=shape
+		#	)
+		#	for shape in self.network._weights_shapes
+		#]
 
 		# discount factor
 		self.gamma: float = 0.91
 
 		# learning rate
-		self.alpha: float = 3e-3
+		self.alpha: float = 1e-3
 
 		# epsilon-greedy policy for explore-exploit trade-off
 		# should decay over training to lower the exploration
 		if train_mode:
-			self.epsilon: float = 2
+			self.epsilon: float = 1.7
 		else:
 			self.epsilon: float = 0
 
@@ -83,7 +91,7 @@ class Agent:
 		self.epsilon = max(0.1, self.epsilon * 0.998)
 
 
-	def update(
+	def update_short(
 			self,
 			state: list[float],
 			action: int,
@@ -91,6 +99,29 @@ class Agent:
 			next_state: list[float],
 			done: bool
 	) -> None:
+		q_values = self.network.predict_output(state)
+		target_qs = q_values.copy()
+
+		if not done:
+			next_q_values = self.network.predict_output(next_state)
+			target_qs[action] = reward + self.gamma * np.max(next_q_values)
+		else:
+			target_qs[action] = reward
+
+		state = np.array(state).reshape((-1, 1))
+		target_qs = np.array(target_qs).reshape((-1, 1))
+
+		self.network.train(
+			x_train=state,
+			y_train=target_qs,
+			learning_rate=self.alpha,
+			constant_lr=True,
+			number_of_epochs=1,
+			batch_size=1,
+			verbose=False
+		)
+
+	def update_with_memory(self) -> None:
 		"""
 			updates the neural network using the Bellman equation.
 
@@ -100,27 +131,56 @@ class Agent:
 			@param next_state: the state after the agent's action
 			@param done: if the game is over or not
 		"""
-		q_values = self.network.predict_output(state)
-		target_q_values = q_values.copy()
+		STATES_LEN = 14
+		ACTIONS_LEN = 4
 
-		if done:
-			# game is over
-			target_q_values[action] = reward
-		else:
-			# using Bellman equation to compute the target
-			next_q_values = self.network.predict_output(next_state)
-			target_q_values[action] = reward + self.gamma * np.max(next_q_values)
 
-		# train the network
-		state = np.array(state).reshape((-1, 1))
-		target_q_values = np.array(target_q_values).reshape((-1, 1))
+		# train only if there are at least batch_size experiences
+		if len(self.replay_buffer) < self.batch_size:
+			return
+
+		batch = self.replay_buffer.sample(self.batch_size)
+
+		# now seperate all the sections in the buffer
+		states, actions, rewards, next_states, dones = zip(*batch)
+
+		# convert them all to numpy arrays
+		states = np.array(states)
+		actions = np.array(actions)
+		rewards = np.array(rewards)
+		next_states = np.array(next_states)
+		dones = np.array(dones)
+
+		states = states.reshape((-1, STATES_LEN))
+		next_states = next_states.reshape((-1, STATES_LEN))
+
+		next_q_values = np.array(
+			[self.network.predict_output(ns.reshape((-1, 1))) for ns in next_states]
+		).reshape((-1, ACTIONS_LEN))
+
+		max_next_q_values = np.max(next_q_values, axis=1).reshape((-1, 1))
+
+		conditions = (1 - dones).reshape((-1, 1))
+
+		targets = (rewards.reshape((-1, 1)) + self.gamma * max_next_q_values * conditions)
+
+		targets = targets.reshape((-1, 1))
+
+
+		q_values = np.array(
+			[self.network.predict_output(s.reshape((-1, 1))) for s in states]
+		).reshape((-1, ACTIONS_LEN))
+
+		for i_batch, action in enumerate(actions):
+			q_values[i_batch, action] = targets[i_batch]
+
 		self.network.train(
-			x_train=state,
-			y_train=target_q_values,
+			x_train=states.T,
+			y_train=q_values.T,
 			learning_rate=self.alpha,
-			decay_rate=0.99999,
-			constant_lr=False,
-			batch_size=1,
-			number_of_epochs=2,
+			constant_lr=True,
+			#decay_rate=0.99999,
+			batch_size=self.batch_size,
+			number_of_epochs=1,
 			verbose=False
 		)
