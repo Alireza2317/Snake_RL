@@ -1,11 +1,12 @@
 from nn import NeuralNetwork
 import numpy as np
 import random
-from snake import Direction
+from snake import Direction, NUM_STATES, NUM_ACTIONS
 from collections import deque
 import os
 
 PARAMETERS_FILE = 'nn_params.txt'
+MAX_CAPACITY = 100_000
 
 random.seed(23)
 
@@ -35,32 +36,28 @@ class Agent:
 		hidden_layers_structure: list[int] = [256],
 		activations: str | list[str] = 'relu',
 		learning_rate: float = 1e-3,
-		batch_size: int = 256,
+		batch_size: int = 1024,
 		parameters_filename: str = PARAMETERS_FILE,
 		gamma: float = 0.9,
 		epsilon_decay_rate: float = 0.99,
 		init_xavier: bool = False,
-		buffer_capacity: int = 10_000
 	) -> None:
-		self.replay_buffer = ReplayBuffer(buffer_capacity)
+		self.replay_buffer = ReplayBuffer(MAX_CAPACITY)
 		self.batch_size = batch_size
 
 		# creating the neural network
 		structure: list[int] = []
 
 		# number of inputs = size of the state of the game
-		structure.append(14)
+		structure.append(NUM_STATES)
 
 		for nodes in hidden_layers_structure:
 			structure.append(nodes)
 
 		# number of outputs = size of the actions of the game
-		structure.append(4)
+		structure.append(NUM_ACTIONS)
 
-		self.network = NeuralNetwork(
-			layers_structure=structure,
-			activations=activations
-		)
+		self.network = NeuralNetwork(layers_structure=structure, activations=activations)
 
 		# Xavier initializer
 		if init_xavier:

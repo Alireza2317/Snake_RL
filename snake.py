@@ -63,6 +63,9 @@ class Direction(Enum):
 	LEFT = 3
 
 
+NUM_STATES = 14
+NUM_ACTIONS = 4
+
 class SnakeGame:
 	"""
 	handles all the logic of a snake game
