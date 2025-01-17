@@ -32,40 +32,62 @@ class Agent:
 	def __init__(
 		self,
 		train_mode: bool = False,
-		buffer_capacity = 10000,
-		batch_size = 256,
-		parameters_filename = PARAMETERS_FILE
+		hidden_layers_structure: list[int] = [256],
+		activations: str | list[str] = 'relu',
+		learning_rate: float = 1e-3,
+		batch_size: int = 256,
+		parameters_filename: str = PARAMETERS_FILE,
+		gamma: float = 0.9,
+		epsilon_decay_rate: float = 0.99,
+		init_xavier: bool = False,
+		buffer_capacity: int = 10_000
 	) -> None:
 		self.replay_buffer = ReplayBuffer(buffer_capacity)
 		self.batch_size = batch_size
 
 		# creating the neural network
+		structure: list[int] = []
+
+		# number of inputs = size of the state of the game
+		structure.append(14)
+
+		for nodes in hidden_layers_structure:
+			structure.append(nodes)
+
+		# number of outputs = size of the actions of the game
+		structure.append(4)
+
 		self.network = NeuralNetwork(
-			layers_structure=[14, 256, 4],
-			activations='relu'
+			layers_structure=structure,
+			activations=activations
 		)
 
-		#self.network.weights = [
-		#	np.random.uniform(
-		#		-np.sqrt(6 / (shape[0]+shape[1])),
-		#		np.sqrt(6 / (shape[0]+shape[1])),
-		#		size=shape
-		#	)
-		#	for shape in self.network._weights_shapes
-		#]
+		# Xavier initializer
+		if init_xavier:
+			self.network.weights = [
+				np.random.uniform(
+					-np.sqrt(6 / (shape[0]+shape[1])),
+					np.sqrt(6 / (shape[0]+shape[1])),
+					size=shape
+				)
+				for shape in self.network._weights_shapes
+			]
 
 		# discount factor
-		self.gamma: float = 0.91
+		self.gamma: float = gamma
 
 		# learning rate
-		self.alpha: float = 1e-3
+		self.alpha: float = learning_rate
 
 		# epsilon-greedy policy for explore-exploit trade-off
 		# should decay over training to lower the exploration
 		if train_mode:
-			self.epsilon: float = 1.7
+			self.epsilon: float = 1
+			self.minimum_epsilon = 0.1
+			self.epsilon_decay_rate = epsilon_decay_rate
 		else:
 			self.epsilon: float = 0
+
 
 		self.parameters_filename = parameters_filename
 		self.hyperparameters_filename = 'hparams.txt'
@@ -96,7 +118,7 @@ class Agent:
 		"""
 			decay epsilon over time to minimize exploration
 		"""
-		self.epsilon = max(0.1, self.epsilon * 0.998)
+		self.epsilon = max(self.minimum_epsilon, self.epsilon * self.epsilon_decay_rate)
 
 
 	def save_params(self):
