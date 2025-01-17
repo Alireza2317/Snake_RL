@@ -1,4 +1,4 @@
-from snake import SnakeGame, SnakeGameGUI, Direction, PARAMETERS_FILE
+from snake import SnakeGame, SnakeGameGUI, Direction
 from agent import Agent
 from matplotlib import pyplot as plt
 
@@ -34,14 +34,7 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 
 
 	if resume:
-		try:
-			with open('params.txt', 'r') as file:
-				eps = float(file.read().strip())
-				agent.epsilon = eps
-
-			agent.network.load_params_from_file(PARAMETERS_FILE)
-		except FileNotFoundError:
-			print('No trained file was found, training from scratch!')
+		agent.load_params()
 
 	# number of points to plot
 	NUM_POINTS = episodes if episodes < 100 else 100
@@ -96,9 +89,7 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 			)
 
 		# save every episode
-		agent.network.save_parameters_to_file(PARAMETERS_FILE)
-		with open('params.txt', 'w') as file:
-			file.write(f'{agent.epsilon}')
+		agent.save_params()
 
 		live_plot(episodes_plot, rewards_average)
 
@@ -122,4 +113,4 @@ def play():
 
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=50, render=False)
+	train_agent(resume=True, episodes=50, render=False)
