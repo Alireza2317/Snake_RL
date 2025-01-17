@@ -19,6 +19,7 @@ def live_plot(x, y):
 
 def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 	agent = Agent(train_mode=True)
+
 	if render:
 		game = SnakeGameGUI()
 		game.fps = 40
@@ -26,8 +27,6 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 		game = SnakeGame()
 
 	total_reward: float = 0
-	episode_rewards = []
-	total_rewards = []
 	rewards_average = [0]
 	steps_survived_list = [0]
 	episodes_plot = [1]
@@ -41,59 +40,68 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 
 	for episode in range(1, episodes+1):
 		steps_survived: int = 0
-		episode_reward: float = 0
-
-		game.reset()
 
 		state = game.get_state()
 
+		# each loop corresponds to one whole game
 		done = False
-
 		while not done:
 			steps_survived += 1
-			ai_action: Direction = agent.choose_action(state)
-			game.action = ai_action
 
+			# agent chooses an action
+			ai_action: Direction = agent.choose_action(state)
+
+			# applying the action to the actual game
+			game.action = ai_action
 			next_state, reward, done = game.step()
 
+			total_reward += reward
+
+			# convert the action from Direction to int index
 			action: int = game.action.value
 
-			# here should call the short train
+			# call the short train on this current experience and save it to buffer
 			agent.update_short(state, action, reward, next_state, done)
-
-			# save the experience to the buffer
 			agent.replay_buffer.add(state, action, reward, next_state, done)
 
-			episode_reward += reward
-
+			# transition the states
 			state = next_state
 
-		# here should call the long train
+		# the game is over so done=True here
+		game.reset()
+
+		# updating the agent with the replay buffer
 		agent.update_with_memory()
 
+		# lower the exploration probability after each episode
 		agent.decay_epsilon()
-		total_reward += episode_reward
 
-
+		# printing and plotting some data
 		if episode % (episodes // NUM_POINTS) == 0:
+			avg_reward: float = total_reward / episode
 			episodes_plot.append(episode)
-			episode_rewards.append(episode_reward)
-			total_rewards.append(total_reward)
 			steps_survived_list.append(steps_survived)
-			rewards_average.append(total_reward / episode)
+			rewards_average.append(avg_reward)
+
 			print(
 				f'Episode {episode}:',
-				f'{total_reward=:.1f}, {episode_reward=:.1f}',
-				f'{steps_survived=}, {agent.epsilon=:.3f}',
+				f'{total_reward=:.3f},',
+				f'avg_reward={avg_reward:.3f},',
+				f'{steps_survived=}, epsilon={agent.epsilon:.3f}',
 				sep=' '
 			)
 
-		# save every episode
+			live_plot(episodes_plot, rewards_average)
+
+		# save parameters every episode
 		agent.save_params()
 
-		live_plot(episodes_plot, rewards_average)
-
-	plt.plot(episodes_plot, rewards_average)
+	# plot the whole data in the end of training
+	plt.plot(
+		episodes_plot, rewards_average,
+		episodes_plot, steps_survived_list
+	)
+	plt.legend(['average rewards', 'steps survived'])
 	plt.show()
 
 
@@ -113,4 +121,4 @@ def play():
 
 
 if __name__ == '__main__':
-	train_agent(resume=True, episodes=50, render=False)
+	train_agent(resume=False, episodes=500, render=False)
