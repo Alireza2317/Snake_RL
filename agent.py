@@ -3,6 +3,9 @@ import numpy as np
 import random
 from snake import Direction
 from collections import deque
+import os
+
+PARAMETERS_FILE = 'nn_params.txt'
 
 random.seed(23)
 
@@ -30,7 +33,8 @@ class Agent:
 		self,
 		train_mode: bool = False,
 		buffer_capacity = 10000,
-		batch_size = 256
+		batch_size = 256,
+		parameters_filename = PARAMETERS_FILE
 	) -> None:
 		self.replay_buffer = ReplayBuffer(buffer_capacity)
 		self.batch_size = batch_size
@@ -63,6 +67,10 @@ class Agent:
 		else:
 			self.epsilon: float = 0
 
+		self.parameters_filename = parameters_filename
+		self.hyperparameters_filename = 'hparams.txt'
+		self.params_dir = './params'
+
 
 	def choose_action(self, state: list[float]) -> Direction:
 		"""
@@ -89,6 +97,37 @@ class Agent:
 			decay epsilon over time to minimize exploration
 		"""
 		self.epsilon = max(0.1, self.epsilon * 0.998)
+
+
+	def save_params(self):
+		if not os.path.exists(self.params_dir):
+			os.mkdir(self.params_dir)
+
+		filepath = os.path.join(self.params_dir, self.parameters_filename)
+		self.network.save_parameters_to_file(filepath)
+
+		# saving epsilon
+		# can save other hyperparameters later, if needed: TODO
+		filepath = os.path.join(self.params_dir, self.hyperparameters_filename)
+		with open(filepath, 'w') as file:
+			file.write(f'{self.epsilon}')
+
+
+	def load_params(self) -> bool:
+		model_params_file = os.path.join(self.params_dir, self.parameters_filename)
+		hyperparams_file = os.path.join(self.params_dir, self.hyperparameters_filename)
+
+		if not (os.path.exists(model_params_file) and os.path.exists(hyperparams_file)):
+			return False
+
+		# if both files exist, load them
+		self.network.load_params_from_file(model_params_file)
+
+		with open(hyperparams_file, 'r') as file:
+			eps = float(file.read().strip())
+			self.epsilon = eps
+
+		return True
 
 
 	def update_short(
@@ -120,6 +159,7 @@ class Agent:
 			batch_size=1,
 			verbose=False
 		)
+
 
 	def update_with_memory(self) -> None:
 		"""
