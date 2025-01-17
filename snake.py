@@ -44,8 +44,6 @@ FOOD_COLOR = (239, 57, 57)
 FONT_SIZE = 22
 FONT_COLOR = (220, 220, 220)
 
-PARAMETERS_FILE = 'nn_params.txt'
-
 if  FPS <= 0:
 	raise ValueError('FPS should be positive numbers!')
 if INITIAL_SIZE >= WN-1:
