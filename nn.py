@@ -386,7 +386,7 @@ class NeuralNetwork:
 		#* m training samples
 		#* x_train.shape = (self.layers_structure[0], m)
 		#* y_train.shape = (self.layers_structure[-1], m)
-		m = len(x_train[1])
+		m = x_train.shape[1]
 
 		# shuffle the training data to avoid biases in the training
 		# shuffling along columns
