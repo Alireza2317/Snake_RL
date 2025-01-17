@@ -2,6 +2,21 @@ from snake import SnakeGame, SnakeGameGUI, Direction, PARAMETERS_FILE
 from agent import Agent
 from matplotlib import pyplot as plt
 
+
+def live_plot(x, y):
+	plt.clf()
+
+	plt.xlabel('episode')
+	plt.title('progress')
+
+	plt.xlim(0, x[-1]+len(x)//5)
+	plt.plot(x, y)
+	plt.text(x[-1], y[-1], f'{y[-1]:.3f}')
+
+	plt.show(block=False)
+	plt.pause(0.0001)
+
+
 def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 	agent = Agent(train_mode=True)
 	if render:
@@ -12,8 +27,10 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 
 	total_reward: float = 0
 	episode_rewards = []
-	steps_survived_list = []
-	episodes_plot = []
+	total_rewards = []
+	rewards_average = [0]
+	steps_survived_list = [0]
+	episodes_plot = [1]
 
 
 	if resume:
@@ -26,6 +43,8 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 		except FileNotFoundError:
 			print('No trained file was found, training from scratch!')
 
+	# number of points to plot
+	NUM_POINTS = episodes if episodes < 100 else 100
 
 	for episode in range(1, episodes+1):
 		steps_survived: int = 0
@@ -45,19 +64,30 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 			next_state, reward, done = game.step()
 
 			action: int = game.action.value
-			agent.update(state, action, reward, next_state, done)
+
+			# here should call the short train
+			agent.update_short(state, action, reward, next_state, done)
+
+			# save the experience to the buffer
+			agent.replay_buffer.add(state, action, reward, next_state, done)
+
 			episode_reward += reward
 
 			state = next_state
+
+		# here should call the long train
+		agent.update_with_memory()
 
 		agent.decay_epsilon()
 		total_reward += episode_reward
 
 
-		if episode % (episodes // 20) == 0:
+		if episode % (episodes // NUM_POINTS) == 0:
 			episodes_plot.append(episode)
 			episode_rewards.append(episode_reward)
+			total_rewards.append(total_reward)
 			steps_survived_list.append(steps_survived)
+			rewards_average.append(total_reward / episode)
 			print(
 				f'Episode {episode}:',
 				f'{total_reward=:.1f}, {episode_reward=:.1f}',
@@ -65,14 +95,15 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 				sep=' '
 			)
 
-	agent.network.save_parameters_to_file(PARAMETERS_FILE)
-	with open('params.txt', 'w') as file:
-		file.write(f'{agent.epsilon}')
+		# save every episode
+		agent.network.save_parameters_to_file(PARAMETERS_FILE)
+		with open('params.txt', 'w') as file:
+			file.write(f'{agent.epsilon}')
 
-	plt.plot(episodes_plot, episode_rewards, episodes_plot, steps_survived_list)
-	plt.legend(['ep rewards', 'survived'])
+		live_plot(episodes_plot, rewards_average)
+
+	plt.plot(episodes_plot, rewards_average)
 	plt.show()
-
 
 
 def play():
@@ -91,4 +122,4 @@ def play():
 
 
 if __name__ == '__main__':
-	train_agent(resume=True, episodes=100, render=False)
+	train_agent(resume=False, episodes=50, render=False)
