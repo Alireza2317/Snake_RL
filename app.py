@@ -1,4 +1,4 @@
-from snake import SnakeGame, SnakeGameGUI, Direction
+from snake import SnakeGame, SnakeGameGUI, Direction, Reward
 from agent import Agent
 from matplotlib import pyplot as plt
 
@@ -19,7 +19,7 @@ def live_plot(x, y):
 
 
 def train_agent(resume: bool, episodes: int, render: bool = False):
-	agent = Agent(train_mode=True)
+	agent = Agent(train_mode=True, init_xavier=1, activations='tanh')
 
 	if render:
 		game = SnakeGameGUI()
@@ -63,7 +63,9 @@ def train_agent(resume: bool, episodes: int, render: bool = False):
 
 			# call the short train on this current experience and save it to buffer
 			agent.update_short(state, action, reward, next_state, done)
-			agent.replay_buffer.add(state, action, reward, next_state, done)
+
+			if reward >= Reward.GROW.value or reward <= Reward.DIE.value:
+				agent.replay_buffer.add(state, action, reward, next_state, done)
 
 			# transition the states
 			state = next_state
