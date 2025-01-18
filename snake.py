@@ -264,13 +264,12 @@ class SnakeGame:
 		return (next_dist < dist)
 
 
-	def step(self) -> tuple[list[float], float, bool]:
+	def step(self) -> tuple[list[float], float]:
 		"""
 		takes in an action and applies it to the game
 		returns a tuple in this order:
 			the game state after the snake's move
 			reward
-			game_over flag
 		"""
 
 		# reward for staying alive but not eating food
@@ -301,6 +300,7 @@ class SnakeGame:
 		if self.game_over:
 			# reward for dying
 			reward += Reward.DIE.value
+			self.reset()
 
 		# update the world
 		self.update_world()
@@ -309,9 +309,10 @@ class SnakeGame:
 		if self.is_world_snaked():
 			# this will probably never happen in a real game!
 			self.game_over = True # good game over!
+			self.reset()
 			print('You won the snake game!')
 
-		return self.get_state(), reward, self.game_over
+		return self.get_state(), reward
 
 
 	def pretty_print(self) -> None:
@@ -563,7 +564,7 @@ class SnakeGameGUI(SnakeGame):
 		)
 
 
-	def step(self) -> tuple[list[float], float, bool]:
+	def step(self) -> tuple[list[float], float]:
 		# get user input in event loop
 		for event in pg.event.get():
 			if event.type == pg.QUIT:
@@ -581,7 +582,7 @@ class SnakeGameGUI(SnakeGame):
 		# stepping the game with a random move
 		self.action = choice(list(Direction))
 
-		state, reward, done = super().step()
+		state, reward = super().step()
 
 		self.update_gui_world()
 
@@ -604,4 +605,4 @@ class SnakeGameGUI(SnakeGame):
 		pg.display.update()
 		self.clock.tick(self.fps)
 
-		return state, reward, done
+		return state, reward
