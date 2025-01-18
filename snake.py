@@ -85,7 +85,7 @@ class SnakeGame:
 
 		# first element will be the head
 		self.snake: list[Position] = [
-			Position(i, 0)
+			Position(i, HN//2)
 			for i in range(INITIAL_SIZE, -1, -1)
 		]
 
