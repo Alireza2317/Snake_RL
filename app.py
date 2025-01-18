@@ -96,7 +96,9 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 		# save parameters every episode
 		agent.save_params()
 
+
 	# plot the whole data in the end of training
+	plt.clf()
 	plt.plot(
 		episodes_plot, rewards_average,
 		episodes_plot, steps_survived_list
@@ -121,4 +123,4 @@ def play():
 
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=500, render=False)
+	train_agent(resume=False, episodes=2000, render=False)
