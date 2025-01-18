@@ -300,7 +300,6 @@ class SnakeGame:
 		if self.game_over:
 			# reward for dying
 			reward += Reward.DIE.value
-			self.reset()
 
 		# update the world
 		self.update_world()
@@ -309,7 +308,6 @@ class SnakeGame:
 		if self.is_world_snaked():
 			# this will probably never happen in a real game!
 			self.game_over = True # good game over!
-			self.reset()
 			print('You won the snake game!')
 
 		return self.get_state(), reward
