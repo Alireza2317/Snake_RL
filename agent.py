@@ -6,7 +6,7 @@ from collections import deque
 import os
 
 PARAMETERS_FILE = 'nn_params.txt'
-MAX_CAPACITY = 100_000
+MAX_CAPACITY = 10_000
 
 random.seed(23)
 
@@ -33,13 +33,13 @@ class Agent:
 	def __init__(
 		self,
 		train_mode: bool = False,
-		hidden_layers_structure: list[int] = [256],
+		hidden_layers_structure: list[int] = [320],
 		activations: str | list[str] = 'relu',
-		learning_rate: float = 1e-3,
-		batch_size: int = 1024,
+		learning_rate: float = 1e-4,
+		batch_size: int = 256,
 		parameters_filename: str = PARAMETERS_FILE,
 		gamma: float = 0.9,
-		epsilon_decay_rate: float = 0.99,
+		epsilon_decay_rate: float = 0.995,
 		init_xavier: bool = False,
 	) -> None:
 		self.replay_buffer = ReplayBuffer(MAX_CAPACITY)
@@ -105,8 +105,8 @@ class Agent:
 
 		# otherwise pick the action with the highest Q(a, s)
 		else:
-			# these would be a list with four elements
-			# each represents one direction
+			# this would be a list with four elements
+			# each element represents one direction
 			q_values = self.network.predict_output(state)
 			return actions[np.argmax(q_values)]
 
@@ -149,6 +149,73 @@ class Agent:
 		return True
 
 
+	def _update(self, states, actions, rewards, next_states, dones, short = True) -> None:
+		"""
+			updates the neural network using the Bellman equation.
+
+			* all parameters can be in a form of a list of multiple data points
+			@param states: the current state of the game
+			@param actions: the action that the agent picked for the state
+			@param rewards: the reward that the agent received for the action
+			@param next_states: the state after the agent's action
+			@param dones: if the game is over or not
+		"""
+
+		# convert all these to np arrays
+		states = np.array(states)
+		actions = np.array(actions)
+		rewards = np.array(rewards)
+		next_states = np.array(next_states)
+		dones = np.array(dones)
+
+		# if this is for a short train
+		# we should adjust the shapes
+		if short:
+			batch_size = 1
+			states = states.reshape((1, NUM_STATES))
+			actions = actions.reshape((1, 1))
+			rewards = rewards.reshape((1, 1))
+			next_states = next_states.reshape((1, NUM_STATES))
+			dones = dones.reshape((1, 1))
+		else:
+			batch_size = min(len(self.replay_buffer), self.batch_size)
+			states = states.reshape((-1, NUM_STATES))
+			next_states = next_states.reshape((-1, NUM_STATES))
+			actions = actions.reshape((-1, 1))
+			rewards = rewards.reshape((-1, 1))
+			dones = dones.reshape((-1, 1))
+
+
+		target_qs_all = []
+
+		for i, done in enumerate(dones):
+			s = states[i].reshape((-1, 1))
+			q_values = self.network.predict_output(s)
+			target_qs = q_values.copy()
+
+			q_new = rewards[i].item()
+			if not done:
+				ns = next_states[i].reshape((-1, 1))
+				next_q_values = self.network.predict_output(ns)
+				q_new += self.gamma * np.max(next_q_values)
+
+			target_qs[actions[i]] = q_new
+			target_qs_all.append(target_qs)
+
+		target_qs_all = np.array(target_qs_all).reshape((-1, NUM_ACTIONS))
+
+
+		self.network.train(
+			x_train=states.T,
+			y_train=target_qs_all.T,
+			learning_rate=self.alpha,
+			constant_lr=True,
+			number_of_epochs=1,
+			batch_size=batch_size,
+			verbose=False
+		)
+
+
 	def update_short(
 			self,
 			state: list[float],
@@ -157,89 +224,16 @@ class Agent:
 			next_state: list[float],
 			done: bool
 	) -> None:
-		q_values = self.network.predict_output(state)
-		target_qs = q_values.copy()
-
-		if not done:
-			next_q_values = self.network.predict_output(next_state)
-			target_qs[action] = reward + self.gamma * np.max(next_q_values)
-		else:
-			target_qs[action] = reward
-
-		state = np.array(state).reshape((-1, 1))
-		target_qs = np.array(target_qs).reshape((-1, 1))
-
-		self.network.train(
-			x_train=state,
-			y_train=target_qs,
-			learning_rate=self.alpha,
-			constant_lr=True,
-			number_of_epochs=1,
-			batch_size=1,
-			verbose=False
-		)
+		self._update(state, action, reward, next_state, done, short=True)
 
 
 	def update_with_memory(self) -> None:
-		"""
-			updates the neural network using the Bellman equation.
+		buffer_size = len(self.replay_buffer)
+		if buffer_size < self.batch_size:
+			batch = self.replay_buffer.sample(buffer_size)
+		else:
+			batch = self.replay_buffer.sample(self.batch_size)
 
-			@param state: the current state of the game
-			@param action: the action that the agent picked for the state
-			@param reward: the reward that the agent received for the action
-			@param next_state: the state after the agent's action
-			@param done: if the game is over or not
-		"""
-		STATES_LEN = 14
-		ACTIONS_LEN = 4
-
-
-		# train only if there are at least batch_size experiences
-		if len(self.replay_buffer) < self.batch_size:
-			return
-
-		batch = self.replay_buffer.sample(self.batch_size)
-
-		# now seperate all the sections in the buffer
 		states, actions, rewards, next_states, dones = zip(*batch)
 
-		# convert them all to numpy arrays
-		states = np.array(states)
-		actions = np.array(actions)
-		rewards = np.array(rewards)
-		next_states = np.array(next_states)
-		dones = np.array(dones)
-
-		states = states.reshape((-1, STATES_LEN))
-		next_states = next_states.reshape((-1, STATES_LEN))
-
-		next_q_values = np.array(
-			[self.network.predict_output(ns.reshape((-1, 1))) for ns in next_states]
-		).reshape((-1, ACTIONS_LEN))
-
-		max_next_q_values = np.max(next_q_values, axis=1).reshape((-1, 1))
-
-		conditions = (1 - dones).reshape((-1, 1))
-
-		targets = (rewards.reshape((-1, 1)) + self.gamma * max_next_q_values * conditions)
-
-		targets = targets.reshape((-1, 1))
-
-
-		q_values = np.array(
-			[self.network.predict_output(s.reshape((-1, 1))) for s in states]
-		).reshape((-1, ACTIONS_LEN))
-
-		for i_batch, action in enumerate(actions):
-			q_values[i_batch, action] = targets[i_batch]
-
-		self.network.train(
-			x_train=states.T,
-			y_train=q_values.T,
-			learning_rate=self.alpha,
-			constant_lr=True,
-			#decay_rate=0.99999,
-			batch_size=self.batch_size,
-			number_of_epochs=1,
-			verbose=False
-		)
+		self._update(states, actions, rewards, next_states, dones, short=False)
