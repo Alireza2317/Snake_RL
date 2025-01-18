@@ -62,6 +62,11 @@ class Direction(Enum):
 	DOWN = 2
 	LEFT = 3
 
+class Reward(Enum):
+	SURVIVE = 1
+	GROW = 5
+	DIE = -2
+
 
 NUM_STATES = 14
 NUM_ACTIONS = 4
@@ -242,7 +247,7 @@ class SnakeGame:
 
 		# reward for staying alive but not eating food
 		# avoid encouraging the agent to just stay alive and not eat food
-		reward: float = +20
+		reward: float = Reward.SURVIVE.value
 
 		self.turn(self.action)
 
@@ -252,7 +257,7 @@ class SnakeGame:
 		if self.ate_food():
 			self.grow()
 			# reward for eating food
-			reward = 3
+			reward = Reward.GROW.value
 
 			if not self.is_world_full():
 				self.generate_food()
@@ -262,7 +267,7 @@ class SnakeGame:
 		self.game_over = self.hit_self() or self.hit_wall()
 		if self.game_over:
 			# reward for dying
-			reward = -1
+			reward = Reward.DIE.value
 
 		# update the world
 		self.update_world()
