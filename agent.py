@@ -39,7 +39,7 @@ class Agent:
 		batch_size: int = 256,
 		parameters_filename: str = PARAMETERS_FILE,
 		gamma: float = 0.9,
-		epsilon_decay_rate: float = 0.995,
+		epsilon_decay_rate: float = 0.9995,
 		init_xavier: bool = False,
 	) -> None:
 		self.replay_buffer = ReplayBuffer(MAX_CAPACITY)
@@ -108,6 +108,21 @@ class Agent:
 			# this would be a list with four elements
 			# each element represents one direction
 			q_values = self.network.predict_output(state)
+			dir_binary = state[-4:]
+			idx = np.argmax(dir_binary)
+			snake_direction: Direction = actions[idx]
+
+			max_idx = np.argmax(q_values)
+
+			dir_u = snake_direction == Direction.UP and max_idx == Direction.DOWN.value
+			dir_r = snake_direction == Direction.RIGHT and max_idx == Direction.LEFT.value
+			dir_d = snake_direction == Direction.DOWN and max_idx == Direction.UP.value
+			dir_l = snake_direction == Direction.LEFT and max_idx == Direction.RIGHT.value
+
+			if dir_u or dir_r or dir_d or dir_l:
+				# ignoring 180 degree turns
+				q_values[max_idx] = -np.inf
+
 			return actions[np.argmax(q_values)]
 
 
