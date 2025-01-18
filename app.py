@@ -17,7 +17,7 @@ def live_plot(x, y):
 	plt.pause(0.0001)
 
 
-def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
+def train_agent(resume: bool, episodes: int, render: bool = False):
 	agent = Agent(train_mode=True)
 
 	if render:
@@ -110,7 +110,7 @@ def train_agent(resume: bool = False, episodes: int = 20, render: bool = False):
 def play():
 	game = SnakeGameGUI()
 	agent = Agent(train_mode=False)
-	agent.network.load_params_from_file('nn_params.txt')
+	agent.load_params()
 
 	while True:
 		state = game.get_state()
