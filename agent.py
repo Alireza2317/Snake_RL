@@ -34,12 +34,12 @@ class Agent:
 		self,
 		train_mode: bool = False,
 		hidden_layers_structure: list[int] = [320],
-		activations: str | list[str] = 'relu',
-		learning_rate: float = 1e-4,
-		batch_size: int = 256,
+		activations: str | list[str] = 'tanh',
+		learning_rate: float = 2e-3,
+		batch_size: int = 1024,
 		parameters_filename: str = PARAMETERS_FILE,
 		gamma: float = 0.9,
-		epsilon_decay_rate: float = 0.9995,
+		epsilon_decay_rate: float = 0.999,
 		init_xavier: bool = False,
 	) -> None:
 		self.replay_buffer = ReplayBuffer(MAX_CAPACITY)
@@ -252,3 +252,8 @@ class Agent:
 		states, actions, rewards, next_states, dones = zip(*batch)
 
 		self._update(states, actions, rewards, next_states, dones, short=False)
+
+
+	def q_vals(self) -> str:
+		output_layer = self.network.layers[-1].reshape((NUM_ACTIONS, ))
+		return str(output_layer)
