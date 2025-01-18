@@ -1,3 +1,4 @@
 - [] update world in gui can be optimized heavily
 - [] generate_food can be optimized
 - [] save other hyperparameters if it helps
+- [] food can be spawned on the snake at beginning
