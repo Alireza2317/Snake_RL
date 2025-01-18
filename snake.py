@@ -14,9 +14,9 @@ INCREMENT_SPEED = False
 SCALE = 1.0065
 
 # dimensions
-WN: int = 10
-HN: int = 10
-BLOCK_SIZE = 50
+WN: int = 20
+HN: int = 20
+BLOCK_SIZE = 35
 
 PD = 50
 # some padding outside the walls of the game. lower values might not allow
@@ -63,9 +63,10 @@ class Direction(Enum):
 	LEFT = 3
 
 class Reward(Enum):
-	SURVIVE = 1
-	GROW = 10
-	DIE = -2
+	SURVIVE = 0.1
+	GROW = 1
+	DIE = -1
+	PROXIMITY = 0.2
 
 
 NUM_STATES = 14
@@ -217,7 +218,6 @@ class SnakeGame:
 		self.food = choice(valid_cells)
 
 
-
 	def is_world_full(self) -> bool:
 		# check to see if there are any empty cells in the world
 		for row in self.world:
@@ -238,6 +238,32 @@ class SnakeGame:
 		return True
 
 
+	def is_getting_close_to_food(self) -> bool:
+		# the current distance from food
+		current_head_pos = self.head
+
+		dist_x = self.food.x - current_head_pos.x
+		dist_y = self.food.y - current_head_pos.y
+
+		dist = abs(dist_x) + abs(dist_y)
+
+		if self.direction == Direction.UP:
+			next_head_pos = Position(current_head_pos.x, current_head_pos.y-1)
+		if self.direction == Direction.RIGHT:
+			next_head_pos = Position(current_head_pos.x+1, current_head_pos.y)
+		if self.direction == Direction.DOWN:
+			next_head_pos = Position(current_head_pos.x, current_head_pos.y+1)
+		if self.direction == Direction.LEFT:
+			next_head_pos = Position(current_head_pos.x-1, current_head_pos.y)
+
+		next_dist_x = self.food.x - next_head_pos.x
+		next_dist_y = self.food.y - next_head_pos.y
+
+		next_dist = abs(next_dist_x) + abs(next_dist_y)
+
+		return (next_dist < dist)
+
+
 	def step(self) -> tuple[list[float], float, bool]:
 		"""
 		takes in an action and applies it to the game
@@ -253,13 +279,18 @@ class SnakeGame:
 
 		self.turn(self.action)
 
+		if self.is_getting_close_to_food():
+			reward += Reward.PROXIMITY.value
+		else:
+			reward -= Reward.PROXIMITY.value
+
 		self.move()
 
 		# snake grows if ate any food
 		if self.ate_food():
 			self.grow()
 			# reward for eating food
-			reward = Reward.GROW.value
+			reward += Reward.GROW.value
 
 			if not self.is_world_full():
 				self.generate_food()
@@ -269,7 +300,7 @@ class SnakeGame:
 		self.game_over = self.hit_self() or self.hit_wall()
 		if self.game_over:
 			# reward for dying
-			reward = Reward.DIE.value
+			reward += Reward.DIE.value
 
 		# update the world
 		self.update_world()
