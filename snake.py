@@ -104,7 +104,8 @@ class SnakeGame:
 
 		self.game_over = False
 
-		self.score: int = 0
+		self.survival_score: int = 0
+		self.food_score: int = 0
 
 
 	def update_world(self) -> None:
@@ -149,9 +150,12 @@ class SnakeGame:
 
 	def grow(self) -> None:
 		self.snake.append(self._left_over)
+		self.food_score += 1
 
 
 	def move(self) -> None:
+		self.survival_score += 1
+
 		# remove the last body part and save it
 		self._left_over = self.snake.pop()
 
@@ -238,7 +242,7 @@ class SnakeGame:
 
 		# reward for staying alive but not eating food
 		# avoid encouraging the agent to just stay alive and not eat food
-		reward: float = -0.02
+		reward: float = +20
 
 		self.turn(self.action)
 
@@ -247,7 +251,6 @@ class SnakeGame:
 		# snake grows if ate any food
 		if self.ate_food():
 			self.grow()
-			self.score += 1
 			# reward for eating food
 			reward = 3
 
@@ -565,7 +568,10 @@ class SnakeGameGUI(SnakeGame):
 		# draw the whole game world and the score
 		self.draw_world()
 
-		info = self.font.render(f'Score = {self.score} ------- FPS = {self.fps:.0f}', True, FONT_COLOR)
+		info = self.font.render(
+			f'survived={self.survival_score: >4}   ----   foods={self.food_score: >3}   ----   FPS = {self.fps:.0f}',
+			True, FONT_COLOR
+		)
 		self.screen.blit(info, (PD, int(PD/5)))
 
 		pg.display.update()
