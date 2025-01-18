@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 
 
 def live_plot(x, y):
+	plt.ion()
 	plt.clf()
 
 	plt.xlabel('episode')
@@ -112,15 +113,19 @@ def play():
 	agent = Agent(train_mode=False)
 	agent.load_params()
 
+	n_games = 1
 	while True:
 		state = game.get_state()
 		game.action = agent.choose_action(state)
 
+		game.text = f'game number: {n_games}'
 		_, _, done = game.step()
 
 		if done:
 			game.reset()
+			n_games += 1
 
 
 if __name__ == '__main__':
-	train_agent(resume=False, episodes=2000, render=False)
+	train_agent(resume=False, episodes=1000, render=False)
+	play()

@@ -64,7 +64,7 @@ class Direction(Enum):
 
 class Reward(Enum):
 	SURVIVE = 1
-	GROW = 5
+	GROW = 10
 	DIE = -2
 
 
@@ -435,6 +435,8 @@ class SnakeGameGUI(SnakeGame):
 
 		self.fps = FPS
 
+		self.text = ''
+
 		# updates self.gui_world from self.world
 		self.update_world()
 
@@ -530,25 +532,6 @@ class SnakeGameGUI(SnakeGame):
 		)
 
 
-	def messg_on_game_over(self, messg: str, color = FONT_COLOR) -> None:
-		pg.time.delay(1000)
-		while True:
-			for event in pg.event.get():
-				if event.type == pg.QUIT:
-					return
-				if event.type == pg.KEYDOWN:
-					if event.key in  [pg.K_RETURN, pg.K_KP_ENTER]:
-						return
-
-
-			font = pg.font.Font(pg.font.get_default_font(), int(FONT_SIZE*1.8))
-			text = font.render(messg, True, color)
-
-			self.screen.fill(BG_COLOR)
-			self.screen.blit(text, (WIDTH//2 - text.get_width()//2, HEIGHT//3))
-			pg.display.update()
-
-
 	def step(self) -> tuple[list[float], float, bool]:
 		# get user input in event loop
 		for event in pg.event.get():
@@ -580,6 +563,12 @@ class SnakeGameGUI(SnakeGame):
 			True, FONT_COLOR
 		)
 		self.screen.blit(info, (PD, int(PD/5)))
+
+		additional_text = self.font.render(
+			self.text, True, FONT_COLOR
+		)
+
+		self.screen.blit(additional_text, (WIDTH//2-WIDTH//5, HEIGHT-PD+15))
 
 		pg.display.update()
 		self.clock.tick(self.fps)
