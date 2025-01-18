@@ -203,17 +203,19 @@ class SnakeGame:
 
 	def generate_food(self) -> None:
 		valid_cells: list[Position] = []
-		for r, row in enumerate(self.world):
-			for c, cell in enumerate(row):
-				pos = Position(x=c, y=r)
-				if not hasattr(self, 'food'):
-					if not self.hit_position(pos):
-						valid_cells.append(pos)
-				else:
-					if cell == '':
-						valid_cells.append(pos)
+
+		for r in range(HN):
+			for c in range(WN):
+				pos = Position(c, r)
+				if not self.hit_position(pos):
+					valid_cells.append(pos)
+
+		if hasattr(self, 'food'):
+			if self.food in valid_cells:
+				valid_cells.remove(self.food)
 
 		self.food = choice(valid_cells)
+
 
 
 	def is_world_full(self) -> bool:
