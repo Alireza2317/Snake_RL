@@ -9,7 +9,8 @@ class Trainer:
 		self.num_episodes = episodes
 
 		# number of points to plot
-		self.log_freqency = episodes // (episodes if episodes < 100 else 100)
+		self.log_freqency = 100 if episodes >= 100 else max(1, episodes // 10)
+
 
 
 	def train_step(self) -> tuple[int, float]:
