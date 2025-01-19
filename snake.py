@@ -1,5 +1,4 @@
 import sys
-import time
 import pygame as pg
 from copy import deepcopy
 from collections import namedtuple
@@ -10,9 +9,6 @@ seed(23)
 
 # speed. the higher the fps, the faster the game
 FPS = 6
-# if set to true, will scale up the fps after eating a food
-INCREMENT_SPEED = False
-SCALE = 1.0065
 
 # dimensions
 WN: int = 20
@@ -65,7 +61,7 @@ class Direction(Enum):
 
 class Reward(Enum):
 	SURVIVE = -0.001
-	GROW = 1
+	GROW = 2
 	DIE = -1
 	PROXIMITY = 0.2
 
