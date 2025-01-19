@@ -1,0 +1,20 @@
+{
+	"episodes": 100,
+	"render": false,
+	"verbose": true,
+	"resume": true,
+	"alpha": 5e-05,
+	"hidden_layers_structure": [
+		256,
+		256
+	],
+	"activations": "relu",
+	"batch_size": 1024,
+	"buffer_max_capacity": 10000,
+	"epsilon_decay_rate": 0.98,
+	"gamma": 0.9,
+	"constant_alpha": false,
+	"alpha_decay_rate": 0.985,
+	"params_subdir": "default",
+	"init_xavier": true
+}

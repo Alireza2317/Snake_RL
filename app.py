@@ -4,12 +4,12 @@ from matplotlib import pyplot as plt
 from snake import SnakeGame, SnakeGameGUI, Direction
 from agent import Agent
 
-DEFAULT_PARAMS_SUBDIRECTORY = 'default'
 
 class Trainer:
 	def __init__(
 			self,
 			*,
+			resume: bool,
 			params_subdir: str,
 			episodes: int,
 			hidden_layers_structure: list[int],
@@ -40,13 +40,15 @@ class Trainer:
 			init_xavier=init_xavier
 		)
 
-
+		if resume:
+			# make the agent use the saved parameters instead of random values
+			self.agent.load_params()
 
 		self.game = SnakeGameGUI() if render else SnakeGame()
 		self.num_episodes = episodes
 
 		# number of points to plot
-		self.log_freqency = 20 if episodes >= 100 else max(1, episodes // 10)
+		self.log_freqency = 10 if episodes >= 100 else max(1, episodes // 10)
 
 
 	def train_step(self) -> tuple[int, float, int]:
@@ -116,7 +118,7 @@ class Trainer:
 
 			# reduce learning rate if necessary
 			if not constant_alpha:
-				self.agent.alpha *= alpha_decay_rate
+				self.agent.alpha = max(1e-4, self.agent.alpha * alpha_decay_rate)
 
 		if verbose:
 			self.final_plot(episodes, avg_rewards, surviveds, foods_eaten)
@@ -141,11 +143,12 @@ class Trainer:
 			foods_eaten: list[int]
 	):
 		print(
-			f'Episode {episode}:',
+			f'Episode {episode: >4}:',
 	  	 	f'total_reward={total_reward:.2f},',
 	 	   	f'avg_reward={avg_reward:.2f},',
 	 	   	f'foods_eaten={food_score},',
-	  	  	f'steps_survived={survived}, epsilon={self.agent.epsilon:.2f},',
+	  	  	f'steps_survived={survived: >3}, epsilon={self.agent.epsilon:.2f},',
+			f'lr={self.agent.alpha:.4f},',
 			f'test_acc={self.agent.test_agent()*100:.1f}%',
 	   		sep=' '
 		)
@@ -219,24 +222,26 @@ def play(agent: Agent):
 
 
 configs = {
-	'episodes': 23,
+	'episodes': 1000,
 
 	'render': False,
 	'verbose': True,
+	'resume': True,
 
-	'alpha': 2e-2,
-	'hidden_layers_structure': [320],
-	'activations': 'tanh',
+	'alpha': 5e-5,
+	'hidden_layers_structure': [256, 256],
+	'activations': 'relu',
 
 	'batch_size': 1024,
 	'buffer_max_capacity': 10_000,
 
 	'epsilon_decay_rate': 0.98,
 	'gamma': 0.9,
-	'constant_alpha': True,
-	'alpha_decay_rate': 0.99,
+	'constant_alpha': False,
+	'alpha_decay_rate': 0.985,
 
-	'params_subdir': DEFAULT_PARAMS_SUBDIRECTORY,
+
+	'params_subdir': 'default',
 	#'params_subdir': 'v1',
 
 	'init_xavier': True
@@ -245,6 +250,7 @@ configs = {
 
 if __name__ == '__main__':
 	trainer = Trainer(
+		resume=configs['resume'],
 		params_subdir=configs['params_subdir'],
 		episodes=configs['episodes'],
 		render=configs['render'],
@@ -258,10 +264,10 @@ if __name__ == '__main__':
 		init_xavier=configs['init_xavier']
 	)
 
-	trainer.train(
-		constant_alpha=configs['constant_alpha'], alpha_decay_rate=configs['alpha_decay_rate'],
-		verbose=configs['verbose']
-	)
-	trainer.save_configs(configs=configs)
+	#trainer.train(
+	#	constant_alpha=configs['constant_alpha'], alpha_decay_rate=configs['alpha_decay_rate'],
+	#	verbose=configs['verbose']
+	#)
+	#trainer.save_configs(configs=configs)
 
 	play(trainer.agent)
