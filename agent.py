@@ -39,7 +39,7 @@ class Agent:
 		batch_size: int = 1024,
 		parameters_filename: str = PARAMETERS_FILE,
 		gamma: float = 0.9,
-		epsilon_decay_rate: float = 0.999,
+		epsilon_decay_rate: float = 0.98,
 		init_xavier: bool = False,
 	) -> None:
 		self.replay_buffer = ReplayBuffer(MAX_CAPACITY)
@@ -272,6 +272,115 @@ class Agent:
 		self._update(states, actions, rewards, next_states, dones, short=False)
 
 
+	def test_agent(self) -> float:
+		test_cases = [
+			# Test Case 1: Food is to the right, no obstacles around
+			{
+				'state': [
+					0.1, 0.0,
+					0.2, 0.8, 0.5, 0.3,
+					0, 0, 0, 0,
+					1, 0, 0, 0
+				],
+				'action': 1  # Right
+			},
+
+			# Test Case 2: Food is below, wall directly above
+			{
+				'state': [
+					0.0, 0.1,
+					0.1, 0.7, 0.9, 0.3,
+					0, 0, 0, 0,
+					0, 1, 0, 0
+				],
+				'action': 2  # Down
+			},
+
+			# Test Case 3: Food is to the left, wall directly to the right
+			{
+				'state': [
+					-0.1, 0.0,
+					0.4, 0.1, 0.6, 0.9,
+					0, 0, 0, 0,
+					0, 0, 0, 1
+				],
+				'action': 3  # Left
+			},
+
+			# Test Case 4: Food is above
+			{
+				'state': [
+					0.0, -0.1,
+					0.5, 0.6, 0.5, 0.4,
+					0, 0, 0, 0,
+					0, 0, 0, 1
+				],
+				'action': 0  # Up
+			},
+
+			# Test Case 5: Food is diagonally up-right, no obstacles
+			{
+				'state': [
+					-0.1, -0.1,
+					0.2, 0.8, 0.8, 0.2,
+					0, 0, 0, 0,
+					0, 0, 0, 1
+				],
+				'action': 0  # Up
+			},
+
+			# Test Case 6: Food is straight ahead, no danger
+			{
+				'state': [
+					0.0, -0.1,
+					0.6, 0.8, 0.4, 0.3,
+					0, 0, 0, 0,
+					1, 0, 0, 0
+				],
+				'action': 0  # Up
+			},
+
+			# Test Case 7: Snake is surrounded by walls except forward
+			{
+				'state': [
+					0.0, 0.4,
+					0.1, 0.1, 0.9, 0.9,
+					0, 0, 0, 0,
+					1, 0, 0, 0
+				],
+				'action': 3  # Left
+			},
+
+			# Test Case 8: Food is far away
+			{
+				'state': [
+					0.6, 0.8,
+					0.4, 0.6, 0.6, 0.4,
+					0, 0, 0, 0,
+					1, 0, 0, 0
+				],
+				'action': 1  # Right
+			}
+		]
+
+		successful: int = 0
+
+		eps = self.epsilon
+		self.epsilon = 0
+		for tcase in test_cases:
+			state, action_idx = tcase.values()
+			chosen_direction = self.choose_action(state)
+			expected_direction = list(Direction)[action_idx]
+
+			if chosen_direction == expected_direction:
+				successful += 1
+
+		self.epsilon = eps
+
+		return successful / len(test_cases)
+
+
+	@property
 	def q_vals(self) -> str:
 		output_layer = self.network.layers[-1].reshape((NUM_ACTIONS, ))
 		return str(output_layer)
