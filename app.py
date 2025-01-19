@@ -1,5 +1,5 @@
 from snake import SnakeGame, SnakeGameGUI, Direction
-from agent import Agent
+from agent import Agent, PARAMETERS_FILE
 from matplotlib import pyplot as plt
 
 class Trainer:
@@ -54,6 +54,7 @@ class Trainer:
 		total_reward = 0
 		avg_rewards = []
 		surviveds = []
+		foods_eaten = []
 		episodes = []
 
 		for episode in range(1, self.num_episodes+1):
@@ -73,11 +74,11 @@ class Trainer:
 				avg_reward = total_reward / episode
 				self.log_and_plot(
 					episode, total_reward, avg_reward, survived, food_score,
-					episodes, avg_rewards, surviveds
+					episodes, avg_rewards, surviveds, foods_eaten
 				)
 
 		if verbose:
-			self.final_plot(episodes, avg_rewards, surviveds)
+			self.final_plot(episodes, avg_rewards, surviveds, foods_eaten)
 
 
 	def update_agent(self):
@@ -95,7 +96,8 @@ class Trainer:
 			food_score: int,
 			episodes: list[int],
 			avg_rewards: list[float],
-			surviveds: list[int]
+			surviveds: list[int],
+			foods_eaten: list[int]
 	):
 		print(
 			f'Episode {episode}:',
@@ -103,12 +105,13 @@ class Trainer:
 	 	   	f'avg_reward={avg_reward:.2f},',
 	 	   	f'foods_eaten={food_score},',
 	  	  	f'steps_survived={survived}, epsilon={self.agent.epsilon:.2f},',
-			#f'test_acc={self.agent.test_agent()*100:.1f}%',
+			f'test_acc={self.agent.test_agent()*100:.1f}%',
 	   		sep=' '
 		)
 		episodes.append(episode)
 		avg_rewards.append(avg_reward)
 		surviveds.append(survived)
+		foods_eaten.append(food_score)
 
 		self.live_plot(episodes, avg_rewards)
 
@@ -132,7 +135,8 @@ class Trainer:
 		self,
 		episodes: list[int],
 		avg_rewards: list[float],
-		surviveds: list[int]
+		surviveds: list[int],
+		foods_eaten: list[int]
 	):
 		plt.show()
 		plt.ioff()
@@ -141,11 +145,11 @@ class Trainer:
 
 		plt.plot(
 			episodes, avg_rewards,
-			episodes, surviveds
+			episodes, surviveds,
+			episodes, foods_eaten
 		)
-		plt.legend(['average rewards', 'steps survived'])
+		plt.legend(['average rewards', 'steps survived', 'foods eaten'])
 		plt.show()
-
 
 
 def play():
@@ -166,6 +170,38 @@ def play():
 			n_games += 1
 
 
+configs = {
+	'alpha': 1e-2,
+	'constant_alpha': True,
+	'alpha_decay_rate': 0.99,
+	'render': False,
+	'verbose': True,
+	'episodes': 150,
+	'hidden_layers_structure': [320],
+	'activations': 'tanh',
+	'batch_size': 1024,
+	'buffer_max_capacity': 10_000,
+	'parameters_filename': PARAMETERS_FILE,
+	'gamma': 0.9,
+	'epsilon_decay_rate': 0.98,
+	'init_xavier': True
+}
+
+
 if __name__ == '__main__':
-	trainer = Trainer(episodes=30, render=True, learning_rate=1e-5)
-	trainer.train()
+	trainer = Trainer(
+		episodes=configs['episodes'],
+		render=configs['render'],
+		learning_rate=configs['alpha'],
+		hidden_layers_structure=configs['hidden_layers_structure'],
+		activations=configs['activations'],
+		batch_size=configs['batch_size'],
+		buffer_max_capacity=configs['buffer_max_capacity'],
+		parameters_filename=configs['parameters_filename'],
+		gamma=configs['gamma'],
+		epsilon_decay_rate=configs['epsilon_decay_rate'],
+		init_xavier=configs['init_xavier']
+	)
+	trainer.train(verbose=configs['verbose'])
+
+	print(trainer.agent.test_agent())
