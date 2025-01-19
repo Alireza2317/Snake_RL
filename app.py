@@ -1,4 +1,4 @@
-from snake import SnakeGame, SnakeGameGUI, Direction, Reward
+from snake import SnakeGame, SnakeGameGUI, Direction
 from agent import Agent
 from matplotlib import pyplot as plt
 
@@ -9,11 +9,10 @@ class Trainer:
 		self.num_episodes = episodes
 
 		# number of points to plot
-		self.log_freqency = 100 if episodes >= 100 else max(1, episodes // 10)
+		self.log_freqency = 20 if episodes >= 100 else max(1, episodes // 10)
 
 
-
-	def train_step(self) -> tuple[int, float]:
+	def train_step(self) -> tuple[int, float, int]:
 		episode_reward: float = 0
 
 		state = self.game.get_state()
@@ -42,34 +41,43 @@ class Trainer:
 			state = next_state
 
 		# since the game is over
+		survived = self.game.survival_score
+		food_score = self.game.food_score
+
+		# reset the game
 		self.game.reset()
 
-		return self.game.survival_score, episode_reward
+		return survived, episode_reward, food_score
 
 
-	def train(self):
+	def train(self, verbose: bool = True):
 		total_reward = 0
 		avg_rewards = []
 		surviveds = []
 		episodes = []
 
 		for episode in range(1, self.num_episodes+1):
-			survived, episode_reward = self.train_step()
+			if isinstance(self.game, SnakeGameGUI):
+				self.game.text = f'{episode=}'
+			#print(f'before: {self.agent.q_vals}')
+			survived, episode_reward, food_score = self.train_step()
 			total_reward += episode_reward
 
 			# updating the agent with the replay buffer
 			# also decaying epsilon
 			# and save parameters every episode
 			self.update_agent()
+			#print(f'after: {self.agent.q_vals}')
 
-			if (episode % self.log_freqency) == 0:
+			if verbose and (episode % self.log_freqency) == 0:
 				avg_reward = total_reward / episode
 				self.log_and_plot(
-					episode, total_reward, avg_reward, survived,
+					episode, total_reward, avg_reward, survived, food_score,
 					episodes, avg_rewards, surviveds
 				)
 
-		self.final_plot(episodes, avg_rewards, surviveds)
+		if verbose:
+			self.final_plot(episodes, avg_rewards, surviveds)
 
 
 	def update_agent(self):
@@ -84,6 +92,7 @@ class Trainer:
 			total_reward: float,
 			avg_reward: float,
 			survived: int,
+			food_score: int,
 			episodes: list[int],
 			avg_rewards: list[float],
 			surviveds: list[int]
@@ -92,10 +101,11 @@ class Trainer:
 			f'Episode {episode}:',
 	  	 	f'total_reward={total_reward:.2f},',
 	 	   	f'avg_reward={avg_reward:.2f},',
-	  	  	f'steps_survived={survived}, epsilon={self.agent.epsilon:.2f}',
+	 	   	f'foods_eaten={food_score},',
+	  	  	f'steps_survived={survived}, epsilon={self.agent.epsilon:.2f},',
+			#f'test_acc={self.agent.test_agent()*100:.1f}%',
 	   		sep=' '
 		)
-
 		episodes.append(episode)
 		avg_rewards.append(avg_reward)
 		surviveds.append(survived)
@@ -149,14 +159,13 @@ def play():
 		game.action = agent.choose_action(state)
 
 		game.text = f'game number: {n_games}'
-		_, _, done = game.step()
+		game.step()
 
-		if done:
+		if game.game_over:
 			game.reset()
 			n_games += 1
 
 
 if __name__ == '__main__':
-	trainer = Trainer(episodes=2, render=False)
-
+	trainer = Trainer(episodes=30, render=True, learning_rate=1e-5)
 	trainer.train()
