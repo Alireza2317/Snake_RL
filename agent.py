@@ -99,27 +99,45 @@ class Agent:
 
 		actions: list[Direction] = list(Direction)
 
+		# since the last 4 elements of state is for the direction of the snake
+		# they can be used to get the snake direction
+		dir_binary = state[-4:]
+		idx = np.argmax(dir_binary)
+		snake_direction: Direction = actions[idx]
+
+		dir_u = snake_direction == Direction.UP
+		dir_r = snake_direction == Direction.RIGHT
+		dir_d = snake_direction == Direction.DOWN
+		dir_l = snake_direction == Direction.LEFT
+
 		# with probability epsilon, pick a random action
 		if random.random() < self.epsilon:
-			return random.choice(actions)
+			actions_dup = actions.copy()
+			if dir_u:
+				actions_dup.remove(Direction.DOWN)
+			elif dir_r:
+				actions_dup.remove(Direction.LEFT)
+			elif dir_d:
+				actions_dup.remove(Direction.UP)
+			elif dir_l:
+				actions_dup.remove(Direction.RIGHT)
+
+			return random.choice(actions_dup)
 
 		# otherwise pick the action with the highest Q(a, s)
 		else:
 			# this would be a list with four elements
 			# each element represents one direction
 			q_values = self.network.predict_output(state)
-			dir_binary = state[-4:]
-			idx = np.argmax(dir_binary)
-			snake_direction: Direction = actions[idx]
 
 			max_idx = np.argmax(q_values)
 
-			dir_u = snake_direction == Direction.UP and max_idx == Direction.DOWN.value
-			dir_r = snake_direction == Direction.RIGHT and max_idx == Direction.LEFT.value
-			dir_d = snake_direction == Direction.DOWN and max_idx == Direction.UP.value
-			dir_l = snake_direction == Direction.LEFT and max_idx == Direction.RIGHT.value
+			dir_u_turn_d = dir_u and max_idx == Direction.DOWN.value
+			dir_r_turn_l = dir_r and max_idx == Direction.LEFT.value
+			dir_d_turn_u = dir_d and max_idx == Direction.UP.value
+			dir_l_turn_r = dir_l and max_idx == Direction.RIGHT.value
 
-			if dir_u or dir_r or dir_d or dir_l:
+			if dir_u_turn_d or dir_r_turn_l or dir_d_turn_u or dir_l_turn_r:
 				# ignoring 180 degree turns
 				q_values[max_idx] = -np.inf
 
