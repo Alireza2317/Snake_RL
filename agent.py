@@ -1,11 +1,10 @@
-from nn import NeuralNetwork
-import numpy as np
-import random
-from snake import Direction, NUM_STATES, NUM_ACTIONS
-from collections import deque
 import os
+import random
+import numpy as np
+from collections import deque
+from nn import NeuralNetwork
+from snake import Direction, NUM_STATES, NUM_ACTIONS
 
-PARAMETERS_FILE = 'nn_params.txt'
 
 random.seed(23)
 
@@ -32,16 +31,16 @@ class Agent:
 	def __init__(
 		self,
 		*,
+		files_savepath: str,
 		train_mode: bool = False,
-		hidden_layers_structure: list[int] = [320],
-		activations: str | list[str] = 'tanh',
-		learning_rate: float = 2e-3,
-		buffer_max_capacity: int = 10_000,
-		batch_size: int = 1024,
-		parameters_filename: str = PARAMETERS_FILE,
-		gamma: float = 0.9,
-		epsilon_decay_rate: float = 0.98,
-		init_xavier: bool = False,
+		hidden_layers_structure: list[int],
+		activations: str | list[str],
+		learning_rate: float,
+		buffer_max_capacity: int,
+		batch_size: int,
+		gamma: float,
+		epsilon_decay_rate: float,
+		init_xavier: bool
 	) -> None:
 		self.replay_buffer = ReplayBuffer(buffer_max_capacity)
 		self.batch_size = batch_size
@@ -52,8 +51,8 @@ class Agent:
 		# number of inputs = size of the state of the game
 		structure.append(NUM_STATES)
 
-		for nodes in hidden_layers_structure:
-			structure.append(nodes)
+		for layer in hidden_layers_structure:
+			structure.append(layer)
 
 		# number of outputs = size of the actions of the game
 		structure.append(NUM_ACTIONS)
@@ -87,9 +86,7 @@ class Agent:
 			self.epsilon: float = 0
 
 
-		self.parameters_filename = parameters_filename
-		self.hyperparameters_filename = 'hparams.txt'
-		self.params_dir = './params'
+		self.files_savepath = files_savepath
 
 
 	def choose_action(self, state: list[float]) -> Direction:
@@ -153,30 +150,31 @@ class Agent:
 
 
 	def save_params(self):
-		if not os.path.exists(self.params_dir):
-			os.mkdir(self.params_dir)
+		# self.files_savepath is something like: ./params/default/
+		if not os.path.exists(self.files_savepath):
+			os.makedirs(self.files_savepath)
 
-		filepath = os.path.join(self.params_dir, self.parameters_filename)
+		filepath = os.path.join(self.files_savepath, 'nn_params.txt')
 		self.network.save_parameters_to_file(filepath)
 
 		# saving epsilon
-		# can save other hyperparameters later, if needed: TODO
-		filepath = os.path.join(self.params_dir, self.hyperparameters_filename)
+		filepath = os.path.join(self.files_savepath, 'epsilon.txt')
 		with open(filepath, 'w') as file:
 			file.write(f'{self.epsilon}')
 
 
 	def load_params(self) -> bool:
-		model_params_file = os.path.join(self.params_dir, self.parameters_filename)
-		hyperparams_file = os.path.join(self.params_dir, self.hyperparameters_filename)
+		model_params_file = os.path.join(self.files_savepath, 'nn_params.txt')
+		epsilon_file = os.path.join(self.files_savepath, 'epsilon.txt')
 
-		if not (os.path.exists(model_params_file) and os.path.exists(hyperparams_file)):
+		if not (os.path.exists(model_params_file) and os.path.exists(epsilon_file)):
+			# files are missing so they can't be loaded
 			return False
 
 		# if both files exist, load them
 		self.network.load_params_from_file(model_params_file)
 
-		with open(hyperparams_file, 'r') as file:
+		with open(epsilon_file, 'r') as file:
 			eps = float(file.read().strip())
 			self.epsilon = eps
 

@@ -1,12 +1,47 @@
-from snake import SnakeGame, SnakeGameGUI, Direction
-from agent import Agent, PARAMETERS_FILE
-from matplotlib import pyplot as plt
-import json
 import os
+import json
+from matplotlib import pyplot as plt
+from snake import SnakeGame, SnakeGameGUI, Direction
+from agent import Agent
+
+DEFAULT_PARAMS_SUBDIRECTORY = 'default'
 
 class Trainer:
-	def __init__(self, episodes: int, render: bool = False, **kwargs):
-		self.agent = Agent(train_mode=True, **kwargs)
+	def __init__(
+			self,
+			*,
+			params_subdir: str,
+			episodes: int,
+			hidden_layers_structure: list[int],
+			activations: str | list[str],
+			learning_rate: float,
+			buffer_max_capacity: int,
+			batch_size: int,
+			gamma: float,
+			epsilon_decay_rate: float,
+			init_xavier: bool,
+			render: bool = False,
+	) -> None:
+		# put all files inside the params parent directory
+		self.params_dir = os.path.join('./params/', params_subdir)
+		if not os.path.exists(self.params_dir):
+			os.makedirs(self.params_dir)
+
+		self.agent = Agent(
+			files_savepath=self.params_dir,
+			train_mode=True,
+			hidden_layers_structure=hidden_layers_structure,
+			activations=activations,
+			learning_rate=learning_rate,
+			buffer_max_capacity=buffer_max_capacity,
+			batch_size=batch_size,
+			gamma=gamma,
+			epsilon_decay_rate=epsilon_decay_rate,
+			init_xavier=init_xavier
+		)
+
+
+
 		self.game = SnakeGameGUI() if render else SnakeGame()
 		self.num_episodes = episodes
 
@@ -52,7 +87,7 @@ class Trainer:
 		return survived, episode_reward, food_score
 
 
-	def train(self, verbose: bool = True):
+	def train(self, constant_alpha: bool, alpha_decay_rate: float, verbose: bool = True):
 		total_reward = 0
 		avg_rewards = []
 		surviveds = []
@@ -78,6 +113,10 @@ class Trainer:
 					episode, total_reward, avg_reward, survived, food_score,
 					episodes, avg_rewards, surviveds, foods_eaten
 				)
+
+			# reduce learning rate if necessary
+			if not constant_alpha:
+				self.agent.alpha *= alpha_decay_rate
 
 		if verbose:
 			self.final_plot(episodes, avg_rewards, surviveds, foods_eaten)
@@ -154,15 +193,16 @@ class Trainer:
 		plt.show()
 
 
-	def save_configs(self, configs: dict, configs_filename: str):
-		filepath = os.path.join(self.agent.params_dir, configs_filename)
+	def save_configs(self, configs: dict):
+		filepath = os.path.join(self.params_dir, 'configs.json')
 		with open(filepath, 'w') as json_file:
 			json.dump(configs, json_file, indent='\t')
 
 
-def play():
+def play(agent: Agent):
 	game = SnakeGameGUI()
-	agent = Agent(train_mode=False)
+
+	agent.epsilon = 0
 	agent.load_params()
 
 	n_games = 1
@@ -179,12 +219,12 @@ def play():
 
 
 configs = {
-	'episodes': 150,
+	'episodes': 23,
 
 	'render': False,
 	'verbose': True,
 
-	'alpha': 1e-2,
+	'alpha': 2e-2,
 	'hidden_layers_structure': [320],
 	'activations': 'tanh',
 
@@ -196,16 +236,16 @@ configs = {
 	'constant_alpha': True,
 	'alpha_decay_rate': 0.99,
 
-	#'parameters_filename': PARAMETERS_FILE,
-	#'configs_filename': 'configs.json'
-	'configs_filename': 'v1.0.json',
-	'parameters_filename': 'v1.0.txt',
+	'params_subdir': DEFAULT_PARAMS_SUBDIRECTORY,
+	#'params_subdir': 'v1',
+
 	'init_xavier': True
 }
 
 
 if __name__ == '__main__':
 	trainer = Trainer(
+		params_subdir=configs['params_subdir'],
 		episodes=configs['episodes'],
 		render=configs['render'],
 		learning_rate=configs['alpha'],
@@ -213,12 +253,15 @@ if __name__ == '__main__':
 		activations=configs['activations'],
 		batch_size=configs['batch_size'],
 		buffer_max_capacity=configs['buffer_max_capacity'],
-		parameters_filename=configs['parameters_filename'],
 		gamma=configs['gamma'],
 		epsilon_decay_rate=configs['epsilon_decay_rate'],
 		init_xavier=configs['init_xavier']
 	)
-	trainer.train(verbose=configs['verbose'])
-	trainer.save_configs(configs=configs, configs_filename=configs['configs_filename'])
 
-	play()
+	trainer.train(
+		constant_alpha=configs['constant_alpha'], alpha_decay_rate=configs['alpha_decay_rate'],
+		verbose=configs['verbose']
+	)
+	trainer.save_configs(configs=configs)
+
+	play(trainer.agent)
