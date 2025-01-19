@@ -1,6 +1,8 @@
 from snake import SnakeGame, SnakeGameGUI, Direction
 from agent import Agent, PARAMETERS_FILE
 from matplotlib import pyplot as plt
+import json
+import os
 
 class Trainer:
 	def __init__(self, episodes: int, render: bool = False, **kwargs):
@@ -152,6 +154,12 @@ class Trainer:
 		plt.show()
 
 
+	def save_configs(self, configs: dict, configs_filename: str):
+		filepath = os.path.join(self.agent.params_dir, configs_filename)
+		with open(filepath, 'w') as json_file:
+			json.dump(configs, json_file, indent='\t')
+
+
 def play():
 	game = SnakeGameGUI()
 	agent = Agent(train_mode=False)
@@ -188,7 +196,10 @@ configs = {
 	'constant_alpha': True,
 	'alpha_decay_rate': 0.99,
 
-	'parameters_filename': PARAMETERS_FILE,
+	#'parameters_filename': PARAMETERS_FILE,
+	#'configs_filename': 'configs.json'
+	'configs_filename': 'v1.0.json',
+	'parameters_filename': 'v1.0.txt',
 	'init_xavier': True
 }
 
@@ -208,3 +219,6 @@ if __name__ == '__main__':
 		init_xavier=configs['init_xavier']
 	)
 	trainer.train(verbose=configs['verbose'])
+	trainer.save_configs(configs=configs, configs_filename=configs['configs_filename'])
+
+	play()
