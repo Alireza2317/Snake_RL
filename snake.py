@@ -1,4 +1,5 @@
 import sys
+import time
 import pygame as pg
 from copy import deepcopy
 from collections import namedtuple
@@ -63,7 +64,7 @@ class Direction(Enum):
 	LEFT = 3
 
 class Reward(Enum):
-	SURVIVE = 0.1
+	SURVIVE = -0.001
 	GROW = 1
 	DIE = -1
 	PROXIMITY = 0.2
@@ -249,11 +250,11 @@ class SnakeGame:
 
 		if self.direction == Direction.UP:
 			next_head_pos = Position(current_head_pos.x, current_head_pos.y-1)
-		if self.direction == Direction.RIGHT:
+		elif self.direction == Direction.RIGHT:
 			next_head_pos = Position(current_head_pos.x+1, current_head_pos.y)
-		if self.direction == Direction.DOWN:
+		elif self.direction == Direction.DOWN:
 			next_head_pos = Position(current_head_pos.x, current_head_pos.y+1)
-		if self.direction == Direction.LEFT:
+		elif self.direction == Direction.LEFT:
 			next_head_pos = Position(current_head_pos.x-1, current_head_pos.y)
 
 		next_dist_x = self.food.x - next_head_pos.x
@@ -266,7 +267,7 @@ class SnakeGame:
 
 	def step(self) -> tuple[list[float], float]:
 		"""
-		takes in an action and applies it to the game
+		applies self.action to the game
 		returns a tuple in this order:
 			the game state after the snake's move
 			reward
@@ -577,13 +578,9 @@ class SnakeGameGUI(SnakeGame):
 					if self.fps - 1 > 0:
 						self.fps -= 1
 
-		# stepping the game with a random move
-		self.action = choice(list(Direction))
-
 		state, reward = super().step()
 
 		self.update_gui_world()
-
 
 		# draw the whole game world and the score
 		self.draw_world()
@@ -604,3 +601,15 @@ class SnakeGameGUI(SnakeGame):
 		self.clock.tick(self.fps)
 
 		return state, reward
+
+
+if __name__ == '__main__':
+	game = SnakeGameGUI()
+	game.fps = 1
+
+	while True:
+		d = choice(list(Direction))
+		game.action = d
+		game.step()
+		if game.game_over:
+			break
