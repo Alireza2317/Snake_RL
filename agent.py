@@ -6,7 +6,6 @@ from collections import deque
 import os
 
 PARAMETERS_FILE = 'nn_params.txt'
-MAX_CAPACITY = 10_000
 
 random.seed(23)
 
@@ -32,17 +31,19 @@ class ReplayBuffer:
 class Agent:
 	def __init__(
 		self,
+		*,
 		train_mode: bool = False,
 		hidden_layers_structure: list[int] = [320],
 		activations: str | list[str] = 'tanh',
 		learning_rate: float = 2e-3,
+		buffer_max_capacity: int = 10_000,
 		batch_size: int = 1024,
 		parameters_filename: str = PARAMETERS_FILE,
 		gamma: float = 0.9,
 		epsilon_decay_rate: float = 0.98,
 		init_xavier: bool = False,
 	) -> None:
-		self.replay_buffer = ReplayBuffer(MAX_CAPACITY)
+		self.replay_buffer = ReplayBuffer(buffer_max_capacity)
 		self.batch_size = batch_size
 
 		# creating the neural network
