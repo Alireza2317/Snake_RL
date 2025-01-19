@@ -171,19 +171,24 @@ def play():
 
 
 configs = {
-	'alpha': 1e-2,
-	'constant_alpha': True,
-	'alpha_decay_rate': 0.99,
+	'episodes': 150,
+
 	'render': False,
 	'verbose': True,
-	'episodes': 150,
+
+	'alpha': 1e-2,
 	'hidden_layers_structure': [320],
 	'activations': 'tanh',
+
 	'batch_size': 1024,
 	'buffer_max_capacity': 10_000,
-	'parameters_filename': PARAMETERS_FILE,
-	'gamma': 0.9,
+
 	'epsilon_decay_rate': 0.98,
+	'gamma': 0.9,
+	'constant_alpha': True,
+	'alpha_decay_rate': 0.99,
+
+	'parameters_filename': PARAMETERS_FILE,
 	'init_xavier': True
 }
 
@@ -203,5 +208,3 @@ if __name__ == '__main__':
 		init_xavier=configs['init_xavier']
 	)
 	trainer.train(verbose=configs['verbose'])
-
-	print(trainer.agent.test_agent())
