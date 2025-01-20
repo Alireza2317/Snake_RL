@@ -23,8 +23,8 @@ class TrainerConfig:
 	gamma: float = 0.9
 	epsilon_decay_rate: float = 0.98
 	init_xavier: bool = True
-	constant_alpha: bool = True
-	alpha_decay_rate: float = 0.985
+	constant_lr: bool = True
+	lr_decay_rate: float = 0.985
 
 	resume: bool = False
 	render: bool = False
@@ -42,8 +42,8 @@ class TrainerConfig:
 			'gamma': self.gamma,
 			'epsilon_decay_rate': self.epsilon_decay_rate,
 			'init_xavier': self.init_xavier,
-			'constant_alpha': self.constant_alpha,
-			'alpha_decay_rate': self.alpha_decay_rate
+			'constant_lr': self.constant_lr,
+			'lr_decay_rate': self.lr_decay_rate
 		}
 
 
@@ -150,9 +150,9 @@ class Trainer:
 				)
 
 			# reduce learning rate if necessary
-			decay_rate = self.config.alpha_decay_rate
-			if not self.config.constant_alpha:
-				self.agent.alpha = max(1e-4, self.agent.alpha * decay_rate)
+			decay_rate = self.config.lr_decay_rate
+			if not self.config.constant_lr:
+				self.agent.lr = max(1e-4, self.agent.lr * decay_rate)
 
 		if self.config.verbose:
 			self.final_plot(episodes, avg_rewards, surviveds, foods_eaten)
@@ -184,7 +184,7 @@ class Trainer:
 	 	   	f'avg_reward={avg_reward:.2f},',
 	 	   	f'foods_eaten={food_score},',
 	  	  	f'steps_survived={survived: >3}, epsilon={self.agent.epsilon:.2f},',
-			f'lr={self.agent.alpha:.4f},',
+			f'lr={self.agent.lr:.4f},',
 			f'test_acc={self.agent.test_agent()*100:.1f}%',
 	   		sep=' '
 		)

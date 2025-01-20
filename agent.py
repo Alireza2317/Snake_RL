@@ -79,7 +79,7 @@ class Agent:
 		self.gamma: float = gamma
 
 		# learning rate
-		self.alpha: float = learning_rate
+		self.lr: float = learning_rate
 
 		# epsilon-greedy policy for explore-exploit trade-off
 		# should decay over training to lower the exploration
@@ -239,13 +239,13 @@ class Agent:
 			target_qs[actions[i]] = q_new
 			target_qs_all.append(target_qs)
 
-		target_qs_all = np.array(target_qs_all).reshape((-1, NUM_ACTIONS))
+		target_qs_all = np.array(target_qs_all).reshape((-1, self.NUM_ACTIONS))
 
 
 		self.network.train(
 			x_train=states.T,
 			y_train=target_qs_all.T,
-			learning_rate=self.alpha,
+			learning_rate=self.lr,
 			constant_lr=True,
 			number_of_epochs=1,
 			batch_size=batch_size,
