@@ -204,7 +204,7 @@ class Trainer:
 
 def play(agent: Agent):
 	game = SnakeGameGUI()
-
+	game.fps = 12
 	agent.epsilon = 0
 	agent.load_params()
 
@@ -263,10 +263,10 @@ if __name__ == '__main__':
 		init_xavier=configs['init_xavier']
 	)
 
-	trainer.train(
-		constant_alpha=configs['constant_alpha'], alpha_decay_rate=configs['alpha_decay_rate'],
-		verbose=configs['verbose']
-	)
-	trainer.save_configs(configs=configs)
+	#trainer.train(
+	#	constant_alpha=configs['constant_alpha'], alpha_decay_rate=configs['alpha_decay_rate'],
+	#	verbose=configs['verbose']
+	#)
+	#trainer.save_configs(configs=configs)
 
 	play(trainer.agent)

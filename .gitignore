@@ -2,3 +2,4 @@ venv/
 pics/
 .directory
 **.pyc
+media/

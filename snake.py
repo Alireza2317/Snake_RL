@@ -13,7 +13,7 @@ FPS = 6
 # dimensions
 WN: int = 20
 HN: int = 20
-BLOCK_SIZE = 35
+BLOCK_SIZE = 40
 
 PD = 50
 # some padding outside the walls of the game. lower values might not allow
@@ -33,7 +33,7 @@ INITIAL_SIZE = 3
 BG_COLOR = (35, 35, 35)
 SNAKE_HEAD_COLOR = (255, 204, 62)
 SNAKE_COLOR = (54, 110, 156)
-GRID_COLOR = (45, 45, 45)
+GRID_COLOR = (38, 38, 38)
 WALL_COLOR = (220, 220, 240)
 FOOD_COLOR = (239, 57, 57)
 
