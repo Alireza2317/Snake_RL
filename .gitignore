@@ -1,5 +1,6 @@
-venv/
-pics/
-.directory
 **.pyc
+.directory
+__pycache__/
+venv/
 media/
+params/
