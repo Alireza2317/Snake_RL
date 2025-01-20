@@ -1,54 +1,88 @@
 import os
 import json
+import random
+import numpy as np
+from dataclasses import dataclass, field
 from matplotlib import pyplot as plt
 from snake import SnakeGame, SnakeGameGUI, Direction
 from agent import Agent
+
+random.seed(23)
+np.random.seed(23)
+
+
+@dataclass
+class TrainerConfig:
+	params_subdir: str = 'default'
+	episodes: int = 100
+	hidden_layers_structure: list[int] = field(default_factory=lambda: [256, 256])
+	activations: str | list[str] = 'relu'
+	learning_rate: float = 1e-3
+	buffer_max_capacity: int = 10_000
+	batch_size: int = 1024
+	gamma: float = 0.9
+	epsilon_decay_rate: float = 0.98
+	init_xavier: bool = True
+	constant_alpha: bool = True
+	alpha_decay_rate: float = 0.985
+
+	resume: bool = False
+	render: bool = False
+	verbose: bool = True
+
+	def __dict__(self):
+		return {
+			'params_subdir': self.params_subdir,
+			'episodes': self.episodes,
+			'hidden_layers_structure': self.hidden_layers_structure,
+			'activations': self.activations,
+			'learning_rate': self.learning_rate,
+			'buffer_max_capacity': self.buffer_max_capacity,
+			'batch_size': self.batch_size,
+			'gamma': self.gamma,
+			'epsilon_decay_rate': self.epsilon_decay_rate,
+			'init_xavier': self.init_xavier,
+			'constant_alpha': self.constant_alpha,
+			'alpha_decay_rate': self.alpha_decay_rate
+		}
 
 
 class Trainer:
 	def __init__(
 			self,
-			*,
-			resume: bool,
-			params_subdir: str,
-			episodes: int,
-			hidden_layers_structure: list[int],
-			activations: str | list[str],
-			learning_rate: float,
-			buffer_max_capacity: int,
-			batch_size: int,
-			gamma: float,
-			epsilon_decay_rate: float,
-			init_xavier: bool,
-			render: bool = False,
+			config: TrainerConfig
 	) -> None:
+		""" Initializes all the necessary configurations from the input config parameter. """
+
+		self.config: TrainerConfig = config
+
 		# put all files inside the params parent directory
-		self.params_dir = os.path.join('./params/', params_subdir)
+		self.params_dir = os.path.join('./params/', config.params_subdir)
 		if not os.path.exists(self.params_dir):
 			os.makedirs(self.params_dir)
 
 		self.agent = Agent(
 			files_savepath=self.params_dir,
 			train_mode=True,
-			hidden_layers_structure=hidden_layers_structure,
-			activations=activations,
-			learning_rate=learning_rate,
-			buffer_max_capacity=buffer_max_capacity,
-			batch_size=batch_size,
-			gamma=gamma,
-			epsilon_decay_rate=epsilon_decay_rate,
-			init_xavier=init_xavier
+			hidden_layers_structure=config.hidden_layers_structure,
+			activations=config.activations,
+			learning_rate=config.learning_rate,
+			buffer_max_capacity=config.buffer_max_capacity,
+			batch_size=config.batch_size,
+			gamma=config.gamma,
+			epsilon_decay_rate=config.epsilon_decay_rate,
+			init_xavier=config.init_xavier
 		)
 
-		if resume:
+		if config.resume:
 			# make the agent use the saved parameters instead of random values
 			self.agent.load_params()
 
-		self.game = SnakeGameGUI() if render else SnakeGame()
-		self.num_episodes = episodes
+		self.game = SnakeGameGUI() if config.render else SnakeGame()
+		self.num_episodes = config.episodes
 
 		# number of points to plot
-		self.log_freqency = 10 if episodes >= 100 else max(1, episodes // 10)
+		self.log_freqency = 10 if config.episodes >= 100 else max(1, config.episodes // 10)
 
 
 	def train_step(self) -> tuple[int, float, int]:
@@ -89,7 +123,7 @@ class Trainer:
 		return survived, episode_reward, food_score
 
 
-	def train(self, constant_alpha: bool, alpha_decay_rate: float, verbose: bool = True):
+	def train(self):
 		total_reward = 0
 		avg_rewards = []
 		surviveds = []
@@ -99,7 +133,7 @@ class Trainer:
 		for episode in range(1, self.num_episodes+1):
 			if isinstance(self.game, SnakeGameGUI):
 				self.game.text = f'{episode=}'
-			#print(f'before: {self.agent.q_vals}')
+
 			survived, episode_reward, food_score = self.train_step()
 			total_reward += episode_reward
 
@@ -107,9 +141,8 @@ class Trainer:
 			# also decaying epsilon
 			# and save parameters every episode
 			self.update_agent()
-			#print(f'after: {self.agent.q_vals}')
 
-			if verbose and (episode % self.log_freqency) == 0:
+			if self.config.verbose and (episode % self.log_freqency) == 0:
 				avg_reward = total_reward / episode
 				self.log_and_plot(
 					episode, total_reward, avg_reward, survived, food_score,
@@ -117,10 +150,11 @@ class Trainer:
 				)
 
 			# reduce learning rate if necessary
-			if not constant_alpha:
-				self.agent.alpha = max(1e-4, self.agent.alpha * alpha_decay_rate)
+			decay_rate = self.config.alpha_decay_rate
+			if not self.config.constant_alpha:
+				self.agent.alpha = max(1e-4, self.agent.alpha * decay_rate)
 
-		if verbose:
+		if self.config.verbose:
 			self.final_plot(episodes, avg_rewards, surviveds, foods_eaten)
 
 
@@ -196,10 +230,13 @@ class Trainer:
 		plt.show()
 
 
-	def save_configs(self, configs: dict):
+	def save_configs(self):
+		config = self.config.__dict__()
+
 		filepath = os.path.join(self.params_dir, 'configs.json')
+
 		with open(filepath, 'w') as json_file:
-			json.dump(configs, json_file, indent='\t')
+			json.dump(config, json_file, indent='\t')
 
 
 def play(agent: Agent):
@@ -221,52 +258,14 @@ def play(agent: Agent):
 			n_games += 1
 
 
-# default configs
-configs = {
-	'episodes': 300,
 
-	'render': False,
-	'verbose': True,
-	'resume': False,
-
-	'alpha': 1e-2,
-	'hidden_layers_structure': [256, 256],
-	'activations': 'relu',
-
-	'batch_size': 1024,
-	'buffer_max_capacity': 10_000,
-
-	'epsilon_decay_rate': 0.98,
-	'gamma': 0.9,
-	'constant_alpha': False,
-	'alpha_decay_rate': 0.985,
-
-	'params_subdir': 'default',
-
-	'init_xavier': True
-}
-
+default_configs = TrainerConfig(params_subdir='v1', episodes=1)
 
 if __name__ == '__main__':
-	trainer = Trainer(
-		resume=configs['resume'],
-		params_subdir=configs['params_subdir'],
-		episodes=configs['episodes'],
-		render=configs['render'],
-		learning_rate=configs['alpha'],
-		hidden_layers_structure=configs['hidden_layers_structure'],
-		activations=configs['activations'],
-		batch_size=configs['batch_size'],
-		buffer_max_capacity=configs['buffer_max_capacity'],
-		gamma=configs['gamma'],
-		epsilon_decay_rate=configs['epsilon_decay_rate'],
-		init_xavier=configs['init_xavier']
-	)
+	trainer = Trainer(config=default_configs)
 
-	#trainer.train(
-	#	constant_alpha=configs['constant_alpha'], alpha_decay_rate=configs['alpha_decay_rate'],
-	#	verbose=configs['verbose']
-	#)
-	#trainer.save_configs(configs=configs)
+	trainer.train()
+
+	trainer.save_configs()
 
 	play(trainer.agent)

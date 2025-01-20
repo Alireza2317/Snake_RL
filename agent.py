@@ -3,10 +3,9 @@ import random
 import numpy as np
 from collections import deque
 from nn import NeuralNetwork
-from snake import Direction, NUM_STATES, NUM_ACTIONS
+from snake import Direction, SnakeGameConfig
 
 
-random.seed(23)
 
 class ReplayBuffer:
 	def __init__(self, capacity: int) -> None:
@@ -42,6 +41,12 @@ class Agent:
 		epsilon_decay_rate: float,
 		init_xavier: bool
 	) -> None:
+		# only needed for getting the number of actions and states
+		self.game_config = SnakeGameConfig()
+
+		self.NUM_STATES = self.game_config.NUM_STATES
+		self.NUM_ACTIONS = self.game_config.NUM_ACTIONS
+
 		self.replay_buffer = ReplayBuffer(buffer_max_capacity)
 		self.batch_size = batch_size
 
@@ -49,13 +54,13 @@ class Agent:
 		structure: list[int] = []
 
 		# number of inputs = size of the state of the game
-		structure.append(NUM_STATES)
+		structure.append(self.NUM_STATES)
 
 		for layer in hidden_layers_structure:
 			structure.append(layer)
 
 		# number of outputs = size of the actions of the game
-		structure.append(NUM_ACTIONS)
+		structure.append(self.NUM_ACTIONS)
 
 		self.network = NeuralNetwork(layers_structure=structure, activations=activations)
 
@@ -204,15 +209,15 @@ class Agent:
 		# we should adjust the shapes
 		if short:
 			batch_size = 1
-			states = states.reshape((1, NUM_STATES))
+			states = states.reshape((1, self.NUM_STATES))
 			actions = actions.reshape((1, 1))
 			rewards = rewards.reshape((1, 1))
-			next_states = next_states.reshape((1, NUM_STATES))
+			next_states = next_states.reshape((1, self.NUM_STATES))
 			dones = dones.reshape((1, 1))
 		else:
 			batch_size = min(len(self.replay_buffer), self.batch_size)
-			states = states.reshape((-1, NUM_STATES))
-			next_states = next_states.reshape((-1, NUM_STATES))
+			states = states.reshape((-1, self.NUM_STATES))
+			next_states = next_states.reshape((-1, self.NUM_STATES))
 			actions = actions.reshape((-1, 1))
 			rewards = rewards.reshape((-1, 1))
 			dones = dones.reshape((-1, 1))
@@ -381,5 +386,5 @@ class Agent:
 
 	@property
 	def q_vals(self) -> str:
-		output_layer = self.network.layers[-1].reshape((NUM_ACTIONS, ))
+		output_layer = self.network.layers[-1].reshape((self.NUM_ACTIONS, ))
 		return str(output_layer)

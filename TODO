@@ -1,4 +1,5 @@
 - [] update world in gui can be optimized heavily
 - [] generate_food can be optimized
-- [] save other hyperparameters if it helps
+- [done] save other hyperparameters if it helps
 - [fixed] food can be spawned on the snake at beginning
+- [fixed] cell types enum
