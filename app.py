@@ -221,14 +221,15 @@ def play(agent: Agent):
 			n_games += 1
 
 
+# default configs
 configs = {
-	'episodes': 1000,
+	'episodes': 300,
 
 	'render': False,
 	'verbose': True,
-	'resume': True,
+	'resume': False,
 
-	'alpha': 5e-5,
+	'alpha': 1e-2,
 	'hidden_layers_structure': [256, 256],
 	'activations': 'relu',
 
@@ -240,9 +241,7 @@ configs = {
 	'constant_alpha': False,
 	'alpha_decay_rate': 0.985,
 
-
 	'params_subdir': 'default',
-	#'params_subdir': 'v1',
 
 	'init_xavier': True
 }
@@ -264,10 +263,10 @@ if __name__ == '__main__':
 		init_xavier=configs['init_xavier']
 	)
 
-	#trainer.train(
-	#	constant_alpha=configs['constant_alpha'], alpha_decay_rate=configs['alpha_decay_rate'],
-	#	verbose=configs['verbose']
-	#)
-	#trainer.save_configs(configs=configs)
+	trainer.train(
+		constant_alpha=configs['constant_alpha'], alpha_decay_rate=configs['alpha_decay_rate'],
+		verbose=configs['verbose']
+	)
+	trainer.save_configs(configs=configs)
 
 	play(trainer.agent)
