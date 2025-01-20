@@ -157,6 +157,8 @@ class Trainer:
 		if self.config.verbose:
 			self.final_plot(episodes, avg_rewards, surviveds, foods_eaten)
 
+		self.save_configs()
+
 
 	def update_agent(self):
 		self.agent.update_with_memory()
@@ -259,13 +261,16 @@ def play(agent: Agent):
 
 
 
-default_configs = TrainerConfig(params_subdir='v1', episodes=1)
-
 if __name__ == '__main__':
-	trainer = Trainer(config=default_configs)
+	default_configs = TrainerConfig()
+
+	custom_configs = TrainerConfig(
+		params_subdir='custom',
+		episodes=200
+	)
+
+	trainer = Trainer(config=custom_configs)
 
 	trainer.train()
-
-	trainer.save_configs()
 
 	play(trainer.agent)
