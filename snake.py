@@ -51,7 +51,7 @@ class SnakeGameConfig:
 	screen_height: int = grid_size * grid_n_rows + 2 * padding
 
 	# speed. the higher the fps, the faster the game
-	fps: int = 6
+	fps: int = 10
 
 	# snake's initial conditions
 	initial_size: int = 3
@@ -615,6 +615,30 @@ class SnakeGameGUI(SnakeGame):
 		)
 
 
+	def draw_texts(self):
+		""" Renders and draws the desired text infos on the screen. """
+
+		scores_sf = self.font.render(
+			f'survived={self.survival_score: >4}  ---  foods={self.food_score: >3}',
+			True, self.cfg.font_color
+		)
+
+		fps_sf = self.font.render(f'FPS = {self.fps: >2}',True, self.cfg.font_color)
+
+		additional_text_sf = self.font.render(self.text, True, self.cfg.font_color)
+
+
+		self.screen.blit(scores_sf, (self.cfg.padding, self.cfg.padding // 5))
+
+		self.screen.blit(fps_sf, (self.cfg.screen_width - 3 * self.cfg.padding, self.cfg.padding // 5))
+
+		text_half_size = (len(self.text) * self.cfg.font_size // 3.9)
+		self.screen.blit(
+			additional_text_sf,
+			(self.cfg.padding , self.cfg.screen_height - self.cfg.padding // 1.5)
+		)
+
+
 	def step(self) -> tuple[list[float], float]:
 		# get user input in event loop
 		for event in pg.event.get():
@@ -637,17 +661,8 @@ class SnakeGameGUI(SnakeGame):
 		# draw the whole game world and the score
 		self.draw_world()
 
-		info = self.font.render(
-			f'survived={self.survival_score: >4}   ----   foods={self.food_score: >3}   ----   FPS = {self.cfg.fps}',
-			True, self.cfg.font_color
-		)
-		self.screen.blit(info, (self.cfg.padding, self.cfg.padding // 5))
-
-		additional_text = self.font.render(
-			self.text, True, self.cfg.font_color
-		)
-
-		self.screen.blit(additional_text, (self.cfg.screen_width-self.cfg.padding, 0))
+		# render and draw the texts
+		self.draw_texts()
 
 		pg.display.update()
 		self.clock.tick(self.fps)
@@ -657,7 +672,6 @@ class SnakeGameGUI(SnakeGame):
 
 if __name__ == '__main__':
 	game = SnakeGameGUI()
-	game.fps = 1
 
 	while True:
 		d = random.choice(list(Direction))
