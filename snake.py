@@ -1,63 +1,23 @@
 import sys
+import random
 import pygame as pg
 from copy import deepcopy
 from collections import namedtuple
 from enum import Enum
-from random import choice, seed
-
-seed(23)
-
-# speed. the higher the fps, the faster the game
-FPS = 6
-
-# dimensions
-WN: int = 20
-HN: int = 20
-BLOCK_SIZE = 40
-
-PD = 50
-# some padding outside the walls of the game. lower values might not allow
-# the score text to have enough space!
-WIDTH = WN * BLOCK_SIZE + 2*PD
-HEIGHT = HN * BLOCK_SIZE + 2*PD
-
-# snake
-# this will determine the shape of the pixels, either round or square-shaped
-# uncomment the one you desire
-SHAPE = 'square'
-#SHAPE = 'circle'
-
-INITIAL_SIZE = 3
-
-# colors, all in tuple format, (r, g, b)
-BG_COLOR = (35, 35, 35)
-SNAKE_HEAD_COLOR = (255, 204, 62)
-SNAKE_COLOR = (54, 110, 156)
-GRID_COLOR = (38, 38, 38)
-WALL_COLOR = (220, 220, 240)
-FOOD_COLOR = (239, 57, 57)
-
-# fonts for texts
-FONT_SIZE = 22
-FONT_COLOR = (220, 220, 220)
-
-if  FPS <= 0:
-	raise ValueError('FPS should be positive numbers!')
-if INITIAL_SIZE >= WN-1:
-	raise ValueError('Snake\'s INITIAL_SIZE is too high!')
-
-# comment this if your screen is big enough
-if WIDTH > 1920 or HEIGHT > 1080:
-	raise ValueError('Consider reducing WN and HN or BLOCK_SIZE! Too big for most screens!')
+from dataclasses import dataclass, field
 
 
-Position = namedtuple('Position', ['x', 'y'])
+class Shape(Enum):
+	square = 0
+	circle = 1
+
 
 class Direction(Enum):
 	UP = 0
 	RIGHT = 1
 	DOWN = 2
 	LEFT = 3
+
 
 class Reward(Enum):
 	SURVIVE = -0.001
@@ -66,25 +26,97 @@ class Reward(Enum):
 	PROXIMITY = 0.2
 
 
-NUM_STATES = 14
-NUM_ACTIONS = 4
+@dataclass
+class SnakeGameConfig:
+	"""
+	Stores all the configuration variables for the snake game.
+	"""
+	# grid dimensions
+	grid_n_columns: int = 20
+	grid_n_rows: int = 20
+
+	# screen sizes in pixel
+	grid_size: int = 40
+	# some padding outside the walls of the game. space to render texts
+	padding: int = 50
+	screen_width: int = grid_size * grid_n_columns + 2 * padding
+	screen_height: int = grid_size * grid_n_rows + 2 * padding
+
+	# speed. the higher the fps, the faster the game
+	fps: int = 6
+
+	# snake's initial conditions
+	initial_size: int = 3
+	initial_direction: Direction = Direction.RIGHT
+	initial_action: Direction = Direction.RIGHT
+
+	# colors, all in tuple format, (r, g, b)
+	bg_color: tuple[int, int, int] = (35, 35, 35)
+	snake_head_color: tuple[int, int, int] = (255, 204, 62)
+	snake_color: tuple[int, int, int] = (54, 110, 156)
+	grid_color: tuple[int, int, int] = (38, 38, 38)
+	wall_color: tuple[int, int, int] = (220, 220, 240)
+	food_color: tuple[int, int, int] = (239, 57, 57)
+
+	# fonts for texts
+	font_size= 22
+	font_color = (220, 220, 220)
+
+	# shape of the grid cells
+	cell_shape: Shape = Shape.square
+
+	# make these immutable since they should be constant all the time
+	NUM_STATES: int = field(init=False, default=14)
+	NUM_ACTIONS: int = field(init=False, default=4)
+
+
+	def __post_init__(self):
+		# data validation
+
+		if self.fps <= 0:
+			raise ValueError('FPS should be positive numbers!')
+
+		if self.initial_size >= self.grid_n_columns - 1:
+			raise ValueError('Snake initial size is too high!')
+
+		if self.grid_n_rows <= 0 or self.grid_n_columns <= 0:
+			raise ValueError('Number of rows and columns should be positive!')
+
+		if self.screen_width > 1920 or self.screen_height > 1080:
+			raise ValueError('Consider reducing grid_n_rows and grid_n_columns or grid_size!')
+
+
+Position = namedtuple('Position', ['x', 'y'])
+
 
 class SnakeGame:
 	"""
-	handles all the logic of a snake game
+	handles all the logic of a snake game such as:
+	- turning the snake
+	- moving the snake
+	- growing the snake
+	- generating food
+	- identify self or wall collision
+	- getting the current state of the game
+	- stepping the game
+	and so on ...
 	"""
 	def __init__(self) -> None:
+		# create a config with the default values
+		self.cfg: SnakeGameConfig = SnakeGameConfig()
 		self.reset()
 
 
 	def reset(self) -> None:
+		""" Resets the whole game. """
+
 		self.direction: Direction = Direction.RIGHT
 		self.action: Direction = Direction.RIGHT
 
 		# first element will be the head
 		self.snake: list[Position] = [
-			Position(i+WN//2 -INITIAL_SIZE, HN//2)
-			for i in range(INITIAL_SIZE, -1, -1)
+			Position(i + self.cfg.grid_n_columns // 2 - self.cfg.initial_size, self.cfg.grid_n_rows // 2)
+			for i in range(self.cfg.initial_size, -1, -1)
 		]
 
 		# useful when growing the snake
@@ -96,7 +128,7 @@ class SnakeGame:
 		# 'f': is the position of the food in the world
 		# '': is the empty cells in the world
 		self.world: list[list[str]] = [
-			['' for col in range(WN)] for row in range(HN)
+			['' for col in range(self.cfg.grid_n_columns)] for row in range(self.cfg.grid_n_rows)
 		]
 
 		# creates self.food property
@@ -112,11 +144,10 @@ class SnakeGame:
 
 
 	def update_world(self) -> None:
-		"""
-		updates self.world based on self.snake and self.food positions
-		"""
-		for r in range(HN):
-			for c in range(WN):
+		""" Updates self.world based on self.snake and self.food positions. """
+
+		for r in range(self.cfg.grid_n_rows):
+			for c in range(self.cfg.grid_n_columns):
 				pos = (c, r)
 				if pos == self.food:
 					self.world[r][c] = 'f'
@@ -139,6 +170,8 @@ class SnakeGame:
 
 
 	def turn(self, dir_to_turn: Direction) -> None:
+		""" Turn the snake based on the given direction. """
+
 		verticals = (Direction.DOWN, Direction.UP)
 		horizentals = (Direction.LEFT, Direction.RIGHT)
 
@@ -152,11 +185,15 @@ class SnakeGame:
 
 
 	def grow(self) -> None:
+		""" Grows the snake by one unit. """
+
 		self.snake.append(self._left_over)
 		self.food_score += 1
 
 
 	def move(self) -> None:
+		""" Moves the snake and updates the snake's position based on the current direction. """
+
 		self.survival_score += 1
 
 		# remove the last body part and save it
@@ -178,32 +215,39 @@ class SnakeGame:
 
 
 	def ate_food(self) -> bool:
+		""" Detects collision with the food. """
+
 		return (self.head == self.food)
 
 
 	def hit_position(self, pos: Position | tuple) -> bool:
+		""" Detects if the given position collides with the snake. """
+
 		return (pos in self.snake)
 
 
 	def hit_self(self) -> bool:
+		""" Detects if the snake hits itself. """
+
 		return (self.head in self.snake[1:])
 
 
 	def hit_wall(self) -> bool:
-		out_of_x = (self.head.x < 0 or self.head.x >= WN)
-		out_of_y = (self.head.y < 0 or self.head.y >= HN)
+		""" Detects if the snake hits the walls. """
 
-		if out_of_x or out_of_y:
-			return True
+		out_of_x = (self.head.x < 0 or self.head.x >= self.cfg.grid_n_columns)
+		out_of_y = (self.head.y < 0 or self.head.y >= self.cfg.grid_n_rows)
 
-		return False
+		return (out_of_x or out_of_y)
 
 
 	def generate_food(self) -> None:
+		""" Generates a food randomly, and sets self.food. """
+
 		valid_cells: list[Position] = []
 
-		for r in range(HN):
-			for c in range(WN):
+		for r in range(self.cfg.grid_n_rows):
+			for c in range(self.cfg.grid_n_columns):
 				pos = Position(c, r)
 				if not self.hit_position(pos):
 					valid_cells.append(pos)
@@ -212,11 +256,12 @@ class SnakeGame:
 			if self.food in valid_cells:
 				valid_cells.remove(self.food)
 
-		self.food = choice(valid_cells)
+		self.food = random.choice(valid_cells)
 
 
 	def is_world_full(self) -> bool:
-		# check to see if there are any empty cells in the world
+		""" Checks to see if there are any empty cells in the world. """
+
 		for row in self.world:
 			for cell in row:
 				if cell == '':
@@ -224,8 +269,9 @@ class SnakeGame:
 		return True
 
 
-	def is_world_snaked(self) -> bool:
-		# best function name does not exist:
+	def is_world_occupied_by_snake(self) -> bool:
+		""" Checks to see if the snake occupies all the cells in the world. """
+
 		for row in self.world:
 			for cell in row:
 				# if the cell is not the snake's head or body parts
@@ -236,13 +282,15 @@ class SnakeGame:
 
 
 	def is_getting_close_to_food(self) -> bool:
+		""" Predicts food proximity based on the cuurent direction. Assuming the Direction being applied. """
+
 		# the current distance from food
 		current_head_pos = self.head
 
-		dist_x = self.food.x - current_head_pos.x
-		dist_y = self.food.y - current_head_pos.y
+		dist_x = abs(self.food.x - current_head_pos.x)
+		dist_y = abs(self.food.y - current_head_pos.y)
 
-		dist = abs(dist_x) + abs(dist_y)
+		dist = dist_x + dist_y
 
 		if self.direction == Direction.UP:
 			next_head_pos = Position(current_head_pos.x, current_head_pos.y-1)
@@ -253,18 +301,18 @@ class SnakeGame:
 		elif self.direction == Direction.LEFT:
 			next_head_pos = Position(current_head_pos.x-1, current_head_pos.y)
 
-		next_dist_x = self.food.x - next_head_pos.x
-		next_dist_y = self.food.y - next_head_pos.y
+		next_dist_x = abs(self.food.x - next_head_pos.x)
+		next_dist_y = abs(self.food.y - next_head_pos.y)
 
-		next_dist = abs(next_dist_x) + abs(next_dist_y)
+		next_dist = next_dist_x + next_dist_y
 
 		return (next_dist < dist)
 
 
 	def step(self) -> tuple[list[float], float]:
 		"""
-		applies self.action to the game
-		returns a tuple in this order:
+		Applies self.action to the game
+		Returns a tuple in this order:
 			the game state after the snake's move
 			reward
 		"""
@@ -302,7 +350,7 @@ class SnakeGame:
 		self.update_world()
 
 		# check if the player won the game?!
-		if self.is_world_snaked():
+		if self.is_world_occupied_by_snake():
 			# this will probably never happen in a real game!
 			self.game_over = True # good game over!
 			print('You won the snake game!')
@@ -328,7 +376,7 @@ class SnakeGame:
 
 	def get_state(self) -> list[float]:
 		"""
-		returning the current game state which consists of 14 elements:
+		Returns the current game state which consists of 14 elements:
 		* float values normalized
 			- food_x_dist
 			- food_y_dist
@@ -347,13 +395,14 @@ class SnakeGame:
 			- left_direction
 		"""
 
-		food_x_dist = (self.food.x -  self.head.x) / WN
-		food_y_dist = (self.food.y -  self.head.y) / HN
+		# normalized distances
+		food_x_dist = (self.food.x -  self.head.x) / self.cfg.grid_n_columns
+		food_y_dist = (self.food.y -  self.head.y) / self.cfg.grid_n_rows
 
-		up_wall_dist = (self.head.y) / HN
-		right_wall_dist = (WN - self.head.x) / WN
-		down_wall_dist = (HN - self.head.y) / HN
-		left_wall_dist = (self.head.x) / WN
+		up_wall_dist = (self.head.y) / self.cfg.grid_n_rows
+		right_wall_dist = (self.cfg.grid_n_columns - self.head.x) / self.cfg.grid_n_columns
+		down_wall_dist = (self.cfg.grid_n_rows - self.head.y) / self.cfg.grid_n_rows
+		left_wall_dist = (self.head.x) / self.cfg.grid_n_columns
 
 		up_self_danger = 0
 		right_self_danger = 0
@@ -362,10 +411,10 @@ class SnakeGame:
 
 		# these are needed because we want to ignore the snake's body(neck)
 		# based on its direction
-		dir_down: bool = self.direction == Direction.DOWN
-		dir_left: bool = self.direction == Direction.LEFT
 		dir_up: bool = self.direction == Direction.UP
 		dir_right: bool = self.direction == Direction.RIGHT
+		dir_down: bool = self.direction == Direction.DOWN
+		dir_left: bool = self.direction == Direction.LEFT
 
 		# these happen when the snake turns in that direction
 		dies_if_turned_up: bool = self.hit_position((self.head.x, self.head.y-1))
@@ -412,31 +461,30 @@ class SnakeGame:
 
 
 class SnakeGameGUI(SnakeGame):
-	"""
-	handles all the graphical features and rendering the snake game
-	"""
+	"""	Handles all the graphical features and rendering the snake game. """
 
 	class Block:
 		"""
 		Block class holds the information of each grid in the snake game
-		Contains information of the positions as well as styles
+		Contains information of the positions as well as styles.
+		Creates square blocks.
 		"""
+
 		def __init__(
 				self,
-				left: int | float,
-				top: int | float,
-				border: int = 0,
-				size: int = BLOCK_SIZE,
-				color: tuple[int, int, int] = (255, 255, 255),
+				top: int,
+				left: int,
+				color: tuple[int, int, int],
+				size: int,
 				kind: str = '',
-				border_radius: tuple[int, int, int, int] = (0, 0, 0, 0) # (tl, tr, br, bl)
+				border: int = 0,
+				border_radii: tuple[int, int, int, int] = (0, 0, 0, 0) # (tl, tr, br, bl)
 		) -> None:
-
 
 			self.block: pg.Rect = pg.Rect((left, top), (size, size))
 			self.color: pg.Color = pg.Color(*color)
 			self.border: int = border
-			self.border_radius: tuple[int, int, int, int] = border_radius
+			self.border_radii: tuple[int, int, int, int] = border_radii
 
 			# kind could be:
 			# 'h': the snake's head
@@ -454,13 +502,13 @@ class SnakeGameGUI(SnakeGame):
 		super().__init__()
 
 		pg.init()
-		self.screen = pg.display.set_mode((WIDTH, HEIGHT))
+		self.screen = pg.display.set_mode((self.cfg.screen_width, self.cfg.screen_height))
 		pg.display.set_caption('Snake Game')
 		self.clock = pg.time.Clock()
 
-		self.font = pg.font.Font(pg.font.get_default_font(), FONT_SIZE)
+		self.font = pg.font.Font(pg.font.get_default_font(), self.cfg.font_size)
 
-		self.fps = FPS
+		self.fps = self.cfg.fps
 
 		self.text = ''
 
@@ -469,93 +517,96 @@ class SnakeGameGUI(SnakeGame):
 
 
 	def update_gui_world(self) -> None:
-		"""
-		updates self.world from SnakeGame.world out of Block objects instead of simple strings
-		"""
+		"""	Updates self.world from SnakeGame.world out of Block objects. """
 
 		super().update_world()
 
 		self.gui_world = deepcopy(self.world)
 
-		if SHAPE == 'circle':
-			radiuses = tuple([BLOCK_SIZE for _ in range(4)])
-		else:
+		if self.cfg.cell_shape == Shape.circle:
+			radiuses = tuple([self.cfg.grid_size for _ in range(4)])
+		elif self.cfg.cell_shape == Shape.square:
 			radiuses = tuple([0 for _ in range(4)])
 
 		for r, row in enumerate(self.world):
 			for c, cell in enumerate(row):
 				# calculating the coordinates of each pixel/block
-				left = c * BLOCK_SIZE + PD
-				top = r * BLOCK_SIZE + PD
-
-				coordinate = (c, r)
-				# this seems backwards but is actually the right way
-				# because r, which is rows, goes up and down -> y coordinate
-				# and c, which is cols, goes right and left -> x coordinate
+				left = c * self.cfg.grid_size + self.cfg.padding
+				top = r * self.cfg.grid_size + self.cfg.padding
 
 				# snake's head block
 				if cell == 'h':
 					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
-						color=SNAKE_HEAD_COLOR,
+						size=self.cfg.grid_size,
+						color=self.cfg.snake_head_color,
 						kind=cell,
-						border_radius=radiuses
+						border_radii=radiuses
 					)
-
 				elif cell == 's':
 					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
-						color=SNAKE_COLOR,
+						size=self.cfg.grid_size,
+						color=self.cfg.snake_color,
 						kind=cell,
-						border_radius=radiuses
+						border_radii=radiuses
 					)
 
 				elif cell == 'f':
 					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
-						color=FOOD_COLOR,
+						size=self.cfg.grid_size,
+						color=self.cfg.food_color,
 						kind=cell,
-						border_radius=radiuses
+						border_radii=radiuses
 					)
 
 				else: # just the empty world block
 					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
-						color=GRID_COLOR,
+						size=self.cfg.grid_size,
+						color=self.cfg.grid_color,
 						border=1,
 						kind=''
 					)
 
 
 	def draw_world(self) -> None:
-		self.screen.fill(color=BG_COLOR)
+		""" Renders self.world on the screen. """
 
-		for r in range(HN):
-			for c in range(WN):
+		self.screen.fill(color=self.cfg.bg_color)
+
+		for r in range(self.cfg.grid_n_rows):
+			for c in range(self.cfg.grid_n_columns):
 				block = self.gui_world[r][c].block
 				block_color = self.gui_world[r][c].color
 				border = self.gui_world[r][c].border
-				radiuses = self.gui_world[r][c].border_radius
+				radii = self.gui_world[r][c].border_radii
 
 				pg.draw.rect(
 					self.screen,
 					color=block_color,
 					rect=block,
 					width=border,
-					border_top_left_radius=radiuses[0],
-					border_top_right_radius=radiuses[1],
-					border_bottom_right_radius=radiuses[2],
-					border_bottom_left_radius=radiuses[3]
+					border_top_left_radius=radii[0],
+					border_top_right_radius=radii[1],
+					border_bottom_right_radius=radii[2],
+					border_bottom_left_radius=radii[3]
 				)
 
+
 		# to draw the walls
-		# to make the blocks near the edge of the wall the correct size
-		adj = PD//10
+		# adjustment to align the pixels
+		adj = self.cfg.padding // 10
 		pg.draw.rect(
 			self.screen,
-			color=WALL_COLOR,
+			color=self.cfg.wall_color,
 			width=5,
-			rect=(PD-adj, PD-adj, WIDTH - 2*PD + 2*adj, HEIGHT - 2*PD + 2*adj) # very nasty!
+			rect=(
+				self.cfg.padding - adj, self.cfg.padding - adj,
+				self.cfg.screen_width - 2 * self.cfg.padding + 2 * adj,
+				self.cfg.screen_height - 2 * self.cfg.padding + 2 * adj
+			)
 		)
 
 
@@ -582,16 +633,16 @@ class SnakeGameGUI(SnakeGame):
 		self.draw_world()
 
 		info = self.font.render(
-			f'survived={self.survival_score: >4}   ----   foods={self.food_score: >3}   ----   FPS = {self.fps:.0f}',
-			True, FONT_COLOR
+			f'survived={self.survival_score: >4}   ----   foods={self.food_score: >3}   ----   FPS = {self.cfg.fps}',
+			True, self.cfg.font_color
 		)
-		self.screen.blit(info, (PD, int(PD/5)))
+		self.screen.blit(info, (self.cfg.padding, self.cfg.padding // 5))
 
 		additional_text = self.font.render(
-			self.text, True, FONT_COLOR
+			self.text, True, self.cfg.font_color
 		)
 
-		self.screen.blit(additional_text, (WIDTH//2-WIDTH//5, HEIGHT-PD+15))
+		self.screen.blit(additional_text, (self.cfg.screen_width-self.cfg.padding, 0))
 
 		pg.display.update()
 		self.clock.tick(self.fps)
@@ -604,7 +655,7 @@ if __name__ == '__main__':
 	game.fps = 1
 
 	while True:
-		d = choice(list(Direction))
+		d = random.choice(list(Direction))
 		game.action = d
 		game.step()
 		if game.game_over:
