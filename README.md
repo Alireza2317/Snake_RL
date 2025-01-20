@@ -32,10 +32,11 @@ The code will first train the agent with the default configs and then play the g
 Feel free to change the `configs` dictionary to change the outcome.
 
 ## Project structure
+```
 .
 ├── app.py                 # Main entry point for training and playing the game
 ├── snake.py               # Snake game logic and environment
 ├── agent.py               # Reinforcement Learning agent implementation
-
+```
 
 Happy coding :)
