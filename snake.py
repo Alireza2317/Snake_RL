@@ -19,6 +19,13 @@ class Direction(Enum):
 	LEFT = 3
 
 
+class CellType(Enum):
+	empty = ''
+	food = 'f'
+	snake_head = 'h'
+	snake = 's'
+
+
 class Reward(Enum):
 	SURVIVE = -0.001
 	GROW = 2
@@ -31,6 +38,7 @@ class SnakeGameConfig:
 	"""
 	Stores all the configuration variables for the snake game.
 	"""
+
 	# grid dimensions
 	grid_n_columns: int = 20
 	grid_n_rows: int = 20
@@ -101,6 +109,7 @@ class SnakeGame:
 	- stepping the game
 	and so on ...
 	"""
+
 	def __init__(self) -> None:
 		# create a config with the default values
 		self.cfg: SnakeGameConfig = SnakeGameConfig()
@@ -123,12 +132,13 @@ class SnakeGame:
 		self._left_over: Position = self.snake[-1]
 
 		# the world consists of 4 elements:
-		# 'h': is the position of the snake's head(only one)
-		# 's': is the position of the snake's body parts(can be more than one)
-		# 'f': is the position of the food in the world
-		# '': is the empty cells in the world
-		self.world: list[list[str]] = [
-			['' for col in range(self.cfg.grid_n_columns)] for row in range(self.cfg.grid_n_rows)
+		# CellType.snake_head is the position of the snake's head(only one)
+		# CellType.snake is the position of the snake's body parts(can be more than one)
+		# CellType.food is the position of the food in the world
+		# CellType.empty is the empty cells in the world
+		self.world: list[list[CellType]] = [
+			[CellType.empty for col in range(self.cfg.grid_n_columns)]
+			for row in range(self.cfg.grid_n_rows)
 		]
 
 		# creates self.food property
@@ -150,13 +160,13 @@ class SnakeGame:
 			for c in range(self.cfg.grid_n_columns):
 				pos = (c, r)
 				if pos == self.food:
-					self.world[r][c] = 'f'
+					self.world[r][c] = CellType.food
 				elif self.hit_position(pos):
-					self.world[r][c] = 's'
+					self.world[r][c] = CellType.snake
 				else:
-					self.world[r][c] = ''
+					self.world[r][c] = CellType.empty
 				if self.head == pos:
-					self.world[r][c] = 'h'
+					self.world[r][c] = CellType.snake_head
 
 
 	@property
@@ -264,7 +274,7 @@ class SnakeGame:
 
 		for row in self.world:
 			for cell in row:
-				if cell == '':
+				if cell == CellType.empty:
 					return False
 		return True
 
@@ -275,7 +285,7 @@ class SnakeGame:
 		for row in self.world:
 			for cell in row:
 				# if the cell is not the snake's head or body parts
-				if cell not in ['h', 's']:
+				if cell not in [CellType.snake, CellType.snake_head]:
 					return False
 
 		return True
@@ -361,13 +371,13 @@ class SnakeGame:
 	def pretty_print(self) -> None:
 		for r, row in enumerate(self.world):
 			for c, cell in enumerate(row):
-				if cell == '':
+				if cell == CellType.empty:
 					print('📦 ', end='')
-				elif cell == 'h':
+				elif cell == CellType.snake_head:
 					print('🐍 ', end='')
-				elif cell == 's':
+				elif cell == CellType.snake:
 					print('🟢 ', end='')
-				elif cell == 'f':
+				elif cell == CellType.food:
 					print('🍎 ', end='')
 			print()
 
@@ -476,7 +486,7 @@ class SnakeGameGUI(SnakeGame):
 				left: int,
 				color: tuple[int, int, int],
 				size: int,
-				kind: str = '',
+				kind: CellType = CellType.empty,
 				border: int = 0,
 				border_radii: tuple[int, int, int, int] = (0, 0, 0, 0) # (tl, tr, br, bl)
 		) -> None:
@@ -486,12 +496,7 @@ class SnakeGameGUI(SnakeGame):
 			self.border: int = border
 			self.border_radii: tuple[int, int, int, int] = border_radii
 
-			# kind could be:
-			# 'h': the snake's head
-			# 's': the snake's body parts
-			# 'f': the food
-			# '': empty cells
-			self.kind: str = kind
+			self.kind: CellType = kind
 
 
 		def __repr__(self) -> str:
@@ -535,7 +540,7 @@ class SnakeGameGUI(SnakeGame):
 				top = r * self.cfg.grid_size + self.cfg.padding
 
 				# snake's head block
-				if cell == 'h':
+				if cell == CellType.snake_head:
 					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
 						size=self.cfg.grid_size,
@@ -543,7 +548,7 @@ class SnakeGameGUI(SnakeGame):
 						kind=cell,
 						border_radii=radiuses
 					)
-				elif cell == 's':
+				elif cell == CellType.snake:
 					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
 						size=self.cfg.grid_size,
@@ -552,7 +557,7 @@ class SnakeGameGUI(SnakeGame):
 						border_radii=radiuses
 					)
 
-				elif cell == 'f':
+				elif cell == CellType.food:
 					self.gui_world[r][c] = self.Block(
 						left=left, top=top,
 						size=self.cfg.grid_size,
@@ -567,7 +572,7 @@ class SnakeGameGUI(SnakeGame):
 						size=self.cfg.grid_size,
 						color=self.cfg.grid_color,
 						border=1,
-						kind=''
+						kind=CellType.empty
 					)
 
 
