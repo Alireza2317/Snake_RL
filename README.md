@@ -1,6 +1,6 @@
-# Reinforcement Learning Snake Game 🐍
+# Reinforcement Learning in Snake Game 🐍
 
-This project is an implementation of a **Reinforcement Learning (RL) agent** to play the classic Snake game. The RL agent should learn to navigate, avoid obstacles, and collect food by maximizing rewards in a grid world.
+This project is an implementation of a **Reinforcement Learning (RL) agent** to play the classic Snake game. The RL agent should learn to navigate, avoid collisions, and collect food by maximizing rewards in a grid world.
 
 ## Features
 - **Customizable RL Agent**: Train the agent using a neural network for decision-making.
