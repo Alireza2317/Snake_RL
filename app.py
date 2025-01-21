@@ -125,9 +125,10 @@ class Trainer:
 
 	def train(self):
 		total_reward = 0
+		total_food_score = 0
 		avg_rewards = []
 		surviveds = []
-		foods_eaten = []
+		avg_foods_eaten = []
 		episodes = []
 
 		for episode in range(1, self.num_episodes+1):
@@ -136,6 +137,7 @@ class Trainer:
 
 			survived, episode_reward, food_score = self.train_step()
 			total_reward += episode_reward
+			total_food_score += food_score
 
 			# updating the agent with the replay buffer
 			# also decaying epsilon
@@ -144,9 +146,10 @@ class Trainer:
 
 			if self.config.verbose and (episode % self.log_freqency) == 0:
 				avg_reward = total_reward / episode
+				avg_food_score = total_food_score / episode
 				self.log_and_plot(
-					episode, total_reward, avg_reward, survived, food_score,
-					episodes, avg_rewards, surviveds, foods_eaten
+					episode, total_reward, avg_reward, survived, avg_food_score,
+					episodes, avg_rewards, surviveds, avg_foods_eaten
 				)
 
 			# reduce learning rate if necessary
@@ -155,7 +158,7 @@ class Trainer:
 				self.agent.lr = max(1e-4, self.agent.lr * decay_rate)
 
 		if self.config.verbose:
-			self.final_plot(episodes, avg_rewards, surviveds, foods_eaten)
+			self.final_plot(episodes, avg_rewards, surviveds, avg_foods_eaten)
 
 		self.save_configs()
 
@@ -172,26 +175,26 @@ class Trainer:
 			total_reward: float,
 			avg_reward: float,
 			survived: int,
-			food_score: int,
+			avg_food_score: float,
 			episodes: list[int],
 			avg_rewards: list[float],
 			surviveds: list[int],
-			foods_eaten: list[int]
+			avg_foods_eaten: list[float]
 	):
 		print(
-			f'Episode {episode: >4}:',
-	  	 	f'total_reward={total_reward:.2f},',
-	 	   	f'avg_reward={avg_reward:.2f},',
-	 	   	f'foods_eaten={food_score},',
-	  	  	f'steps_survived={survived: >3}, epsilon={self.agent.epsilon:.2f},',
-			f'lr={self.agent.lr:.4f},',
+			f'Episode {episode:>4}:',
+	  	 	f'total_reward={total_reward:>9.2f},',
+	 	   	f'avg_reward={avg_reward:>7.2f},',
+	 	   	f'avg_food={avg_food_score:>6.1f},',
+	  	  	f'survived={survived:>4}, eps={self.agent.epsilon:.2f},',
+			f'lr={self.agent.lr:.5f},',
 			f'test_acc={self.agent.test_agent()*100:.1f}%',
 	   		sep=' '
 		)
 		episodes.append(episode)
 		avg_rewards.append(avg_reward)
 		surviveds.append(survived)
-		foods_eaten.append(food_score)
+		avg_foods_eaten.append(avg_food_score)
 
 		self.live_plot(episodes, avg_rewards)
 
@@ -201,6 +204,7 @@ class Trainer:
 		plt.clf()
 
 		plt.xlabel('episode')
+		plt.ylabel('average reward')
 		plt.title('progress')
 
 		plt.xlim(0, x[-1]+len(x)//5)
@@ -216,7 +220,7 @@ class Trainer:
 		episodes: list[int],
 		avg_rewards: list[float],
 		surviveds: list[int],
-		foods_eaten: list[int]
+		avg_foods_eaten: list[int]
 	):
 		plt.show()
 		plt.ioff()
@@ -226,9 +230,9 @@ class Trainer:
 		plt.plot(
 			episodes, avg_rewards,
 			episodes, surviveds,
-			episodes, foods_eaten
+			episodes, avg_foods_eaten
 		)
-		plt.legend(['average rewards', 'steps survived', 'foods eaten'])
+		plt.legend(['average rewards', 'steps survived', 'average foods eaten'])
 		plt.show()
 
 
@@ -266,7 +270,9 @@ if __name__ == '__main__':
 
 	custom_configs = TrainerConfig(
 		params_subdir='custom',
-		episodes=200
+		episodes=280,
+		constant_lr=True,
+		learning_rate=1e-2
 	)
 
 	trainer = Trainer(config=custom_configs)
