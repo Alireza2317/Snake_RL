@@ -2,7 +2,7 @@ import sys
 import random
 import pygame as pg
 from copy import deepcopy
-from collections import namedtuple
+from typing import NamedTuple
 from enum import Enum
 from dataclasses import dataclass, field
 
@@ -94,7 +94,9 @@ class SnakeGameConfig:
 			raise ValueError('Consider reducing grid_n_rows and grid_n_columns or grid_size!')
 
 
-Position = namedtuple('Position', ['x', 'y'])
+class Position(NamedTuple):
+	x: int
+	y: int
 
 
 class SnakeGame:
